@@ -40,29 +40,29 @@ Message::Message() {
  * Initialize and prepare a new message to be packed with a bunch of different events.
  * The new message will not be sent until it is committed
  */
-Message::init() {
+void Message::init() {
 	if(setting.send_tuio) {
 
 	}
 }
 
-Message::addHand(Hand hand) {
+void Message::addHand(Hand hand) {
 	if(setting.send_tuio) {
 
 	}
 }
 
-Message::updateHand(Hand hand) {
+void Message::updateHand(Hand hand) {
 	if(setting.send_tuio) {
 	}
 }
 
-Message::removeHand(Hand hand) {
+void Message::removeHand(Hand hand) {
 	if(setting.send_tuio) {
 	}
 }
 
-Message::commit() {
+void Message::commit() {
 	if(setting.send_tuio) {
 	}
 }
