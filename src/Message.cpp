@@ -31,6 +31,30 @@ Message::Message() {
 	tuioServer = new TuioServer();
 }
 
+/**
+ * Initialize and prepare a new message to be packed with a bunch of different events.
+ * The new message will not be sent until it is committed
+ */
+Message::init() {
+
+}
+
+Message::addHand(Hand hand) {
+
+}
+
+Message::updateHand(Hand hand) {
+
+}
+
+Message::removeHand(Hand hand) {
+
+}
+
+Message::commit() {
+
+}
+
 Message::~Message() {
 	delete tuioServer;
 }

@@ -29,7 +29,7 @@
 									<listOptionValue builtIn="false" value="/usr/local/include/opencv"/>
 									<listOptionValue builtIn="false" value="/usr/include/flycapture/"/>
 									<listOptionValue builtIn="false" value="/usr/lib"/>
-									<listOptionValue builtIn="false" value="/mnt/arasbm_server/Projects/Gibbon/TUIO_CPP/TUIO"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Gibbon/TUIO_CPP/TUIO}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1448792172" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -43,6 +43,7 @@
 								<option id="gnu.cpp.link.option.paths.286280726" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="/usr/include/opencv"/>
 									<listOptionValue builtIn="false" value="/usr/include/flycapture"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Gibbon/TUIO_CPP}&quot;"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.954858804" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="cv"/>
@@ -630,6 +631,7 @@
 									<listOptionValue builtIn="false" value="/usr/include/opencv"/>
 									<listOptionValue builtIn="false" value="/usr/include/flycapture"/>
 									<listOptionValue builtIn="false" value="/usr/lib"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Gibbon/TUIO_CPP}&quot;"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.1155813937" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="flycapture"/>
