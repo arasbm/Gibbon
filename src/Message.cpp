@@ -23,12 +23,17 @@
 #include "TuioServer.h"
 #include "TuioClient.h"
 #include "TuioCursor.h"
+#include "Setting.h"
 
 using namespace TUIO;
 using namespace osc;
 
+static Setting setting = Setting::Instance();
+
 Message::Message() {
-	tuioServer = new TuioServer();
+	if(setting.send_tuio) {
+		tuioServer = new TuioServer();
+	}
 }
 
 /**
@@ -36,25 +41,34 @@ Message::Message() {
  * The new message will not be sent until it is committed
  */
 Message::init() {
+	if(setting.send_tuio) {
 
+	}
 }
 
 Message::addHand(Hand hand) {
+	if(setting.send_tuio) {
 
+	}
 }
 
 Message::updateHand(Hand hand) {
-
+	if(setting.send_tuio) {
+	}
 }
 
 Message::removeHand(Hand hand) {
-
+	if(setting.send_tuio) {
+	}
 }
 
 Message::commit() {
-
+	if(setting.send_tuio) {
+	}
 }
 
 Message::~Message() {
-	delete tuioServer;
+	if(setting.send_tuio) {
+		delete tuioServer;
+	}
 }
