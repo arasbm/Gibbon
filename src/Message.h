@@ -34,16 +34,18 @@ class Message {
 public:
 	Message();
 	void init();
-	void addHand(Hand hand);
+	void addHandGesture(Hand hand);
 	void updateHand(Hand hand);
 	void removeHand(Hand hand);
 	void commit();
 	~Message();
 
 private:
-	TuioServer* tuioServer;
+	TuioServer tuioServer;
+	TuioTime tuioTime;
 	//TuioCursor* touch;
 	std::map<int, TuioObject> handList; //One tuio object for each hand object
+	//TODO if above does not work properly try using typedef
 
 };
 

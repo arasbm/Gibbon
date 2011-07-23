@@ -46,24 +46,33 @@ void Message::init() {
 	}
 }
 
-void Message::addHand(Hand hand) {
+/**
+ * Every time a new hand gesture is detected this method should be called to create a new message
+ * for this new hand gesture
+ */
+void Message::addHandGesture(Hand hand) {
 	if(setting.send_tuio) {
+		tuioTime = TuioTime::getSessionTime();
+		handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), );
 
 	}
 }
 
 void Message::updateHand(Hand hand) {
 	if(setting.send_tuio) {
+
 	}
 }
 
 void Message::removeHand(Hand hand) {
 	if(setting.send_tuio) {
+
 	}
 }
 
 void Message::commit() {
 	if(setting.send_tuio) {
+
 	}
 }
 

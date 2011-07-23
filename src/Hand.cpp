@@ -33,6 +33,10 @@ handSide Hand::getHandSide() {
 	return side;
 }
 
+/**
+ * If the hand is still being tracked returns true
+ * if it is out of view and so Hand::clear() has been called returns false
+ */
 bool Hand::isPresent() {
 	return present;
 }
@@ -41,6 +45,9 @@ void Hand::setPresent(bool p) {
 	present = p;
 }
 
+/**
+ * return the contour of this hand
+ */
 Mat Hand::getContour() {
 	return contour;
 }
@@ -83,6 +90,44 @@ int Hand::getMinCircleRadius() {
  */
 int Hand::getHandNumber() {
 	return handNumber;
+}
+
+void Hand::setGesture(gesture g) {
+	handGesture = g;
+}
+
+gesture Hand::getGesture() {
+	return handGesture;
+}
+
+/**
+ * The message combines hand ID with the current gesture into one int.
+ * Assuming 32 bit integer the most left right 8 bits are used for gesture ID and
+ * the second 8 bits are used for Hand ID. So a 32 bit integer can be divided into four bytes:
+ *        [unused][unused][HandID][GestureID]
+ */
+int Hand::handMessageID() {
+	return (handNumber << 8) & getGesture();
+}
+
+/**
+ * Return the X value of position of hand gesture as a number in the range [0 1]
+ * The position depends on the type of gesture and it means the location in which the gesture
+ * should be applied to. For example in the case of Grab gesture this may be the intersection
+ * of trajectory of most features of the hands.
+ */
+float Hand::getX() {
+	return gestureX;
+}
+
+/**
+ * Return the Y value of position of hand gesture as a number in the range [0 1]
+ * The position depends on the type of gesture and it means the location in which the gesture
+ * should be applied to. For example in the case of Grab gesture this may be the intersection
+ * of trajectory of most features of the hands.
+ */
+float Hand::getY() {
+	return gestureY;
 }
 
 /**

@@ -31,6 +31,11 @@ typedef enum _handSide {
 	RIGHT_HAND
 } handSide;
 
+typedef enum _gesture {
+	GESTURE_GRAB = 1,
+	GESTURE_RELEASE = 2
+} gesture;
+
 class Hand {
 
 public:
@@ -48,9 +53,15 @@ public:
 	void setContour(Mat contour);
 	int getHandNumber();
 	void clear();
+	gesture getGesture();
+	void setGesture(gesture g);
+	int handMessageID();
+	int getX();
+	int getY();
 
 private:
 	handSide side;
+	gesture handGesture;
 	Point2f circleCenter; //center of enclosing circle
 	Point2f featureMean; //mean location of features
 	Mat contour; //the contour of this hand
@@ -59,6 +70,8 @@ private:
 	RotatedRect minRect;
 	bool present;
 	int handNumber;
+	float gestureX; //X position of the gesture in the range [0 1]
+	float gestureY; //Y position of the gesture in the range [0 1]
 
 };
 
