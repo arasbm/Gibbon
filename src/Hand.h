@@ -56,8 +56,9 @@ public:
 	gesture getGesture();
 	void setGesture(gesture g);
 	int handMessageID();
-	int getX();
-	int getY();
+	float getX();
+	float getY();
+	float getAngle();
 
 private:
 	handSide side;
@@ -72,6 +73,7 @@ private:
 	int handNumber;
 	float gestureX; //X position of the gesture in the range [0 1]
 	float gestureY; //Y position of the gesture in the range [0 1]
+	float angle; //the angle in the range [0 2PI]
 
 };
 

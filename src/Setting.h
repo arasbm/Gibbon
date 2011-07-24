@@ -94,7 +94,7 @@ private:
 		save_input_video = false;
 		save_output_video = false;
 		subtract_background = false;
-		send_tuio = false;
+		send_tuio = true;
 		verbose = false; //when in verbose mode, process info is printed to terminal in various places
 		is_daemon = false; //when in daemon mode no video is displayed and no drawing happens
 		source_recording_path = "/home/arasbm/Desktop/grab_and_release_data/source.avi";

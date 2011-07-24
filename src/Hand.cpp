@@ -20,6 +20,9 @@
  */
 
 #include "Hand.h"
+#include "Setting.h"
+
+Setting setting = Setting::Instance();
 
 Hand::Hand(handSide s) {
 	static int handCount;
@@ -117,7 +120,8 @@ int Hand::handMessageID() {
  * of trajectory of most features of the hands.
  */
 float Hand::getX() {
-	return gestureX;
+	//return gestureX;
+	return (setting.imageSize.width - this->getMinCircleCenter().x) / setting.imageSize.width;
 }
 
 /**
@@ -127,7 +131,16 @@ float Hand::getX() {
  * of trajectory of most features of the hands.
  */
 float Hand::getY() {
-	return gestureY;
+	//return gestureY;
+	return this->getMinCircleCenter().y / setting.imageSize.height;
+}
+
+/**
+ * The angle of this hand as a float in the range [0 2PI]
+ */
+float Hand::getAngle() {
+	//return angle;
+	return this->minRect.angle;
 }
 
 /**

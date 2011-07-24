@@ -18,12 +18,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Gibbon.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <stdexcept>
 
 #include "Message.h"
 #include "TuioServer.h"
 #include "TuioClient.h"
 #include "TuioCursor.h"
 #include "Setting.h"
+#include "Log.h"
 
 using namespace TUIO;
 using namespace osc;
@@ -42,42 +44,55 @@ Message::Message() {
  */
 void Message::init() {
 	if(setting.send_tuio) {
-
+		TuioTime time = TuioTime::getSessionTime();
+		tuioServer->initFrame(time);
 	}
 }
 
 /**
- * Every time a new hand gesture is detected this method should be called to create a new message
- * for this new hand gesture
+ * Every time (frame) a NEW hand is detected this method should be called to create a new message
+ * for this hand and any gestures associated with it
  */
-void Message::addHandGesture(Hand hand) {
+void Message::newHand(Hand hand) {
 	if(setting.send_tuio) {
-		tuioTime = TuioTime::getSessionTime();
-		handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), );
-
+		//tuioTime = TuioTime::getSessionTime();
+		//handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
+		handList[hand.getHandNumber()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
 	}
 }
 
+/**
+ * for updating an existing hand. New gestures will be retrived from the hand and sent over using
+ * appropriate protocols such as TUIO
+ */
 void Message::updateHand(Hand hand) {
 	if(setting.send_tuio) {
-
+		tuioServer->updateTuioObject(handList[hand.getHandNumber()], hand.getX(), hand.getY(), hand.getAngle());
 	}
 }
 
+/**
+ * send the message that this hand is not present
+ */
 void Message::removeHand(Hand hand) {
 	if(setting.send_tuio) {
-
+		tuioServer->removeTuioObject(handList[hand.getHandNumber()]);
 	}
 }
 
+/**
+ * commit the frame containing all the messages that have been added since last init()
+ * the message will be transmitted to the client using appropriate protocol(s) such as TUIO
+ */
 void Message::commit() {
 	if(setting.send_tuio) {
-
+		tuioServer->commitFrame();
 	}
 }
 
 Message::~Message() {
 	if(setting.send_tuio) {
+		handList.clear();
 		delete tuioServer;
 	}
 }

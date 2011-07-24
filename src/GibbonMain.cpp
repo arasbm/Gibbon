@@ -62,6 +62,8 @@ void drawMeanAndStdDev(Mat img);
 float getDistance(const Point2f a, const Point2f b);
 int numberOfHands();
 int index();
+void updateMessage();
+int previousIndex();
 
 /** OpenCV variables **/
 CvPoint mouseLocation;
@@ -69,7 +71,7 @@ VideoWriter sourceWriter;
 VideoWriter resultWriter;
 
 /** Hand tracking structures (temporal tracking window) **/
-const uint hand_window_size = 5; //Number of frames to keep track of hand
+const uint hand_window_size = 5; //Number of frames to keep track of hand. Minimum of two is needed
 vector<Hand> leftHand(hand_window_size, Hand(LEFT_HAND));
 vector<Hand> rightHand(hand_window_size, Hand(RIGHT_HAND));
 
@@ -90,7 +92,7 @@ bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
 Undistortion undistortion;
-Message tuioMsg;
+Message message; //used by updateMessage() and inside the main loop
 int frameCount = 0;
 static Setting setting = Setting::Instance();
 
@@ -123,7 +125,7 @@ int main(int argc, char* argv[]) {
 
 /**
  * Initialize global variables
- **/
+ */
 void init() {
 	if(setting.do_undistortion) {
 		undistortion = Undistortion();
@@ -133,16 +135,48 @@ void init() {
 
 /**
  * Check for grab gesture
- * */
+ */
 void checkGrab() {
 
 }
 
 /**
  * Check for release gesture
- * */
+ */
 void checkRelease() {
 
+}
+
+/**
+ * Check if there are any hands and add current hand gestures to global object
+ * "message"
+ */
+void updateMessage() {
+	if(leftHand.at(index()).isPresent() && (!leftHand.at(previousIndex()).isPresent())) {
+		//New hand!
+		message.newHand(leftHand.at(index()));
+	} else if(leftHand.at(index()).isPresent()) {
+		//Update existing hand
+		message.updateHand(leftHand.at(index()));
+	} else if((!leftHand.at(index()).isPresent()) && leftHand.at(previousIndex()).isPresent()) {
+		//ask for remove
+		message.removeHand(leftHand.at(index()));
+	} else {
+		//Peace and quiet here. Nothing to do.
+	}
+
+	if(rightHand.at(index()).isPresent() && (!rightHand.at(previousIndex()).isPresent())) {
+		//New hand!
+		message.newHand(rightHand.at(index()));
+	} else if(rightHand.at(index()).isPresent()) {
+		//Update existing hand
+		message.updateHand(rightHand.at(index()));
+	} else if((!rightHand.at(index()).isPresent()) && rightHand.at(previousIndex()).isPresent()){
+		//no hand, so ask for remove
+		message.removeHand(rightHand.at(index()));
+	} else {
+		//nothing to do.
+	}
 }
 
 /**
@@ -282,6 +316,7 @@ void start(){
 			cvtColor(currentFrame, tmpColor, CV_RGB2GRAY);
 			currentFrame = tmpColor;
 		}
+		message.init();
 
 		if(!setting.is_daemon) {
 			imshow("Source", currentFrame);
@@ -312,7 +347,7 @@ void start(){
 		}
 
 		//clean up the current frame from noise using median blur filter
-		//medianBlur(binaryImg, binaryImg, setting.median_blur_factor);
+		medianBlur(binaryImg, binaryImg, setting.median_blur_factor);
 		if(setting.capture_snapshot) {
 			imwrite(setting.snapshot_path + "median.png", binaryImg);
 		}
@@ -345,10 +380,10 @@ void start(){
 		//drawContours(watershed_markers, contours, -1, CV_RGB(0, 0, 0)); //TODO watershed testing
 		//TODO: watershed testing
 		//imshow("Watershed before", watershed_markers);
-		watershed_image = cvCreateMat(currentFrame.rows, currentFrame.cols, CV_8UC3 );
-		cvtColor(currentFrame, watershed_image, CV_GRAY2BGR);
-		watershed(watershed_image, depthImage);
-		imshow("Watershed", depthImage);
+		//watershed_image = cvCreateMat(currentFrame.rows, currentFrame.cols, CV_8UC3 );
+		//cvtColor(currentFrame, watershed_image, CV_GRAY2BGR);
+		//watershed(watershed_image, depthImage);
+		//imshow("Watershed", depthImage);
 
 		findHands(contours);
 
@@ -368,6 +403,8 @@ void start(){
 		} else {
 			//TODO: is any cleanup necessary here?
 		}
+		updateMessage();
+
 		if(setting.capture_snapshot) {
 			imwrite(setting.snapshot_path + "source.png", currentFrame);
 			depthImage.convertTo(depthImage, CV_8SC3);
@@ -406,6 +443,7 @@ void start(){
 			imshow("Tracked", trackingResults);
 		}
 
+		message.commit();
 		previousFrame = currentFrame;
 		currentCorners = previousCorners;
 		frameCount++;
@@ -511,15 +549,22 @@ int numberOfHands() {
 /**
  * Returns the current index based on the frame count that is used to identify which hand in the
  * leftHand and rightHand arrays are corresponding to current frame
- * */
+ */
 int index() {
 	return frameCount % hand_window_size;
 }
 
 /**
+ * return the index of previous hand in the hand temporal window
+ */
+int previousIndex() {
+	return (frameCount - 1) % hand_window_size;
+}
+
+/**
  * Draw features based on the hand they belong to
  * @Precondition: assignFeaturedToHand() is executed and leftRightStatus[i] is filled
- * */
+ */
 void drawFeatures(Mat img) {
 	for(int i = 0; i < maxCorners; i++) {
 		if(leftRightStatus[i] == 1) {
