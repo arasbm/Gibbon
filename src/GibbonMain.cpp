@@ -393,7 +393,6 @@ void start(){
 
 		//Canny(previousFrame, previousFrame, 0, 30, 3);
 		if(!setting.is_daemon) {
-			trackingResults = cvCreateMat(currentFrame.rows, currentFrame.cols, CV_8UC3 );
 			cvtColor(currentFrame, trackingResults, CV_GRAY2BGR);
 
 			if (contours.size() > 0) {
@@ -425,7 +424,7 @@ void start(){
 			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
 			drawMeanAndStdDev(trackingResults);
-			checkGrab();
+			checkRotate();
 			checkRelease();
 		} else {
 			//TODO: is any cleanup necessary here?
