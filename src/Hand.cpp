@@ -121,7 +121,8 @@ int Hand::handMessageID() {
  */
 float Hand::getX() {
 	//return gestureX;
-	return (setting.imageSize.width - this->getMinCircleCenter().x) / setting.imageSize.width;
+	//return (setting.imageSize.width - this->getMinCircleCenter().x) / setting.imageSize.width;
+	return (setting.imageSize.width - this->getFeatureMean().x) / setting.imageSize.width;
 }
 
 /**
@@ -132,7 +133,8 @@ float Hand::getX() {
  */
 float Hand::getY() {
 	//return gestureY;
-	return this->getMinCircleCenter().y / setting.imageSize.height;
+	//return this->getMinCircleCenter().y / setting.imageSize.height;
+	return this->getFeatureMean().y / setting.imageSize.height;
 }
 
 /**
@@ -150,3 +152,27 @@ void Hand::clear() {
 	setPresent(false);
 	//TODO: Check for anything else I need to do here to prevent error or release memory
 }
+
+/**
+ * Set standard deviation and location of mean for features belonging to this hand
+ */
+void Hand::setFeatureMeanStdDev(Point2f mean, float stdDev) {
+	featureMean = mean;
+	featureStdDev = stdDev;
+}
+
+/**
+ * return the mean location of this hand
+ * @Precondition: setFeatureMeanStdDev has been called
+ */
+Point2f Hand::getFeatureMean() {
+	return featureMean;
+}
+
+/**
+ * return the standard deviation of features
+ */
+float Hand::getFeatureStdDev() {
+	return featureStdDev;
+}
+

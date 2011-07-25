@@ -96,3 +96,4 @@ Message::~Message() {
 		delete tuioServer;
 	}
 }
+

@@ -182,7 +182,7 @@ void updateMessage() {
 /**
  * Draw the circles around the hands and the trace of them moving
  * during the temporal window that they are tracked
- * */
+ */
 void drawHandTrace(Mat img) {
 	//left hand
 	if(leftHand.at(index()).isPresent()) {
@@ -220,7 +220,7 @@ void drawHandTrace(Mat img) {
 
 /**
  * This functions process the input key and set application mode accordingly
- * */
+ */
 void processKey(char key) {
 	switch(key) {
 		case '1':
@@ -246,7 +246,7 @@ void processKey(char key) {
 /**
  * find features in two frame and track them using optical flow.
  * result is stored in global data structure
- **/
+ */
 void findGoodFeatures(Mat frame1, Mat frame2) {
 	goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, frame1, blockSize, useHarrisDetector);
 	//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
@@ -257,7 +257,7 @@ void findGoodFeatures(Mat frame1, Mat frame2) {
  * This is the main loop function that loads and process images one by one
  * The function attempts to either connect to a PGR camera or loads
  * a video file from predefined path
- * */
+ */
 void start(){
 	//Contour detection structures
 	vector<vector<cv::Point> > contours;
@@ -394,9 +394,8 @@ void start(){
 			//featureDepthExtract(trackingResults);
 
 			drawFeatures(trackingResults);
-			//drawFeatureDepth(trackingResults);
-
-			//TODO: Fix: meanAndStdDevExtract();
+			//TODO: drawFeatureDepth(trackingResults);
+			meanAndStdDevExtract();
 			//TODO: Fix: drawMeanAndStdDev(trackingResults);
 			checkGrab();
 			checkRelease();
@@ -461,7 +460,7 @@ void start(){
 
 /**
  * Find two largest blobs which hopefully represent the two hands
- * */
+ */
 void findHands(vector<vector<cv::Point> > contours) {
 	Point2f tmpCenter, max1Center, max2Center;
 	float tmpRadius = 0, max1Radius = 0, max2Radius = 0;
@@ -534,7 +533,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 
 /**
  * Calculate and return the number of detected hands in the current frame
- * */
+ */
 int numberOfHands() {
 	int numberOfHands = 0;
 	if (leftHand.at(index()).isPresent()) {
@@ -589,7 +588,7 @@ void drawFeatures(Mat img) {
 /**
  * Draw a circle for mean and stdDev of features and a trace of their changes over
  * the hand temporal window
- * */
+ */
 void drawMeanAndStdDev(Mat img) {
 //	int lastLeftIndex = leftHandFeatureMean.size() - 1;
 //	int lastRightIndex = rightHandFeatureMean.size() - 1;
@@ -605,7 +604,7 @@ void drawMeanAndStdDev(Mat img) {
 
 /**
  * assign features to hand(s)if at least one hand exist
- * */
+ */
 void assignFeaturesToHands() {
 	leftRightStatus.clear();
 //	for(int i = 0; i < maxCorners; i++) {
@@ -638,7 +637,7 @@ void assignFeaturesToHands() {
 
 /**
  * Calculate the distance between two points
- * */
+ */
 float getDistance(const Point2f a, const Point2f b) {
 	return sqrt(pow((a.x - b.x), 2) + pow((a.y - b.y), 2));
 }
@@ -646,7 +645,7 @@ float getDistance(const Point2f a, const Point2f b) {
 /**
  * Find mean point and standard deviation of features for each hand
  * @Precondition: assignFeatureToHands is executed
- * */
+ */
 void meanAndStdDevExtract() {
 	//first calculate the mean
 	Point2f leftMean, rightMean;
@@ -686,16 +685,17 @@ void meanAndStdDevExtract() {
 
 	//TODO: finish this function
 	if(leftCount > 0) {
-		//addFeatureMeanStdDev(true, leftMean, leftStdDev);
+		leftHand.at(index()).setFeatureMeanStdDev(leftMean, leftStdDev);
 	}
 	if(rightCount > 0) {
-		//addFeatureMeanStdDev(false, rightMean, rightStdDev);
+		rightHand.at(index()).setFeatureMeanStdDev(rightMean, rightStdDev);
 	}
 }
 
 /**
  * Calculate the depth of each feature based on the blurriness of its window
- * */
+ * TODO: complete this function using minEigenValue calculation
+ */
 void featureDepthExtract(const Mat img) {
 	Mat feature;
 	Rect rect;

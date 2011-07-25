@@ -59,6 +59,9 @@ public:
 	float getX();
 	float getY();
 	float getAngle();
+	void setFeatureMeanStdDev(Point2f mean, float stdDev);
+	Point2f getFeatureMean();
+	float getFeatureStdDev();
 
 private:
 	handSide side;
