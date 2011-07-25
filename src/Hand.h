@@ -23,6 +23,7 @@
 #define HAND_H_
 
 #include "cv.h"
+#include <utility>
 
 using namespace cv;
 
@@ -65,16 +66,22 @@ public:
 	void setNumOfFeatures(int numOfFeatures);
 	int getNumOfFeatures();
 	bool hasPointInside(Point2f point);
+	void addFeatureAndVector(Point2f feature, Point2f vector);
+	vector<Point2f> getFeatures();
+	vector<Point2f> getVectors();
+	void calcMeanStdDev();
 
 private:
 	handSide side;
 	gesture handGesture;
 	Point2f circleCenter; //center of enclosing circle
-	Point2f featureMean; //mean location of features
 	vector<cv::Point> contour;
+	vector<Point2f> features; //location of features of this hand
+	vector<Point2f> vectors; //vector associated with features of this hand
+	Point2f featureMean; //mean location of features
+	float featureStdDev; //standard deviation of features
 
 	int circleRadius; //radius of enclosing circle
-	float featureStdDev; //standard deviation of features
 	RotatedRect minRect;
 	bool present;
 	int handNumber;

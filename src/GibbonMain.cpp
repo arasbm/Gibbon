@@ -47,8 +47,7 @@ using namespace std;
 using namespace cv;
 
 void processKey(char key);
-void addFeatureMeanStdDev(bool left, Point2f mean, float stdDev);
-void findHands(vector<vector<cv::Point> > contours, vector<Vec4i> hiearchy);
+void findHands(vector<vector<cv::Point> > contours);
 void opencvConnectedComponent(Mat* src, Mat* dst);
 void init();
 void start();
@@ -71,23 +70,23 @@ CvPoint mouseLocation;
 VideoWriter sourceWriter;
 VideoWriter resultWriter;
 
-/** Hand tracking structures (temporal tracking window) **/
+/** Hand tracking structures [temporal tracking window] **/
 const uint hand_window_size = 5; //Number of frames to keep track of hand. Minimum of two is needed
 vector<Hand> leftHand(hand_window_size, Hand(LEFT_HAND)); //circular: see index() function
 vector<Hand> rightHand(hand_window_size, Hand(RIGHT_HAND)); //circular: see index() function
 
 /** goodFeaturesToTrack structure and settings **/
 vector<Point2f> previousCorners;
-vector<Point2f> currentCorners; //Center point of feature or corner rectangles
-vector<uchar> flowStatus;
+vector<Point2f> currentCorners; //Centre point of feature or corner rectangles
+vector<uchar> flowStatus; //set to 1 if the flow for the corresponding features has been found, 0 otherwise
 vector<float> featureDepth;
-vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
+//vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
 vector<float> flowError;
 TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
 double derivLambda = 0.5; //proportion for impact of "image intensity" as opposed to "derivatives"
-int maxCorners = 16;
-double qualityLevel = 0.01;
-double minDistance = 10;
+int maxCorners = 32;
+double qualityLevel = 0.05;
+double minDistance = 5;
 int blockSize = 16;
 bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
@@ -138,7 +137,32 @@ void init() {
  * Check for grab gesture
  */
 void checkGrab() {
+	//need at least 3 hands confirming the gesture
+	int factor = 10;
+	int min_feature = 5;
+	//Left hand
+	if(leftHand.at(index()).isPresent() && leftHand.at(previousIndex(1)).isPresent() && leftHand.at(previousIndex(2)).isPresent() ) {
+		if(leftHand.at(index()).getNumOfFeatures() > min_feature &&
+				(leftHand.at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
+				(leftHand.at(previousIndex(2)).getNumOfFeatures() > min_feature)) {
+			if(leftHand.at(index()).getFeatureStdDev() + factor < leftHand.at(previousIndex(1)).getFeatureStdDev() &&
+					(leftHand.at(previousIndex(1)).getFeatureStdDev() + factor < leftHand.at(previousIndex(2)).getFeatureStdDev())) {
+				verbosePrint(">>Left GRAB<<");
+			}
+		}
+	}
 
+	//right hand
+	if(rightHand.at(index()).isPresent() && rightHand.at(previousIndex(1)).isPresent() && rightHand.at(previousIndex(2)).isPresent() ) {
+		if(rightHand.at(index()).getNumOfFeatures() > min_feature &&
+				(rightHand.at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
+				(rightHand.at(previousIndex(2)).getNumOfFeatures() > min_feature)) {
+			if(rightHand.at(index()).getFeatureStdDev() + factor < rightHand.at(previousIndex(1)).getFeatureStdDev() &&
+					(rightHand.at(previousIndex(1)).getFeatureStdDev() + factor < rightHand.at(previousIndex(2)).getFeatureStdDev())) {
+				verbosePrint(">>Right GRAB<<");
+			}
+		}
+	}
 }
 
 /**
@@ -188,9 +212,9 @@ void drawHandTrace(Mat img) {
 	//left hand
 	if(leftHand.at(index()).isPresent()) {
 		ellipse(img, leftHand[index()].getMinRect(), ORANGE, 2, 8);
-		for(uint i = index(); i < index() + hand_window_size; i++) {
-			int current = (i + 1) % hand_window_size;
-			int previous = i % hand_window_size;
+		for(uint i = 0; i+1 < hand_window_size; i++) {
+			int current = previousIndex(i);
+			int previous = previousIndex(i + 1);
 			if(leftHand.at(current).isPresent() && leftHand.at(previous).isPresent()) {
 				if(setting.left_grab_mode) {
 					line(img, leftHand.at(previous).getMinCircleCenter(), leftHand.at(current).getMinCircleCenter(), ORANGE, 5, 4, 0);
@@ -205,9 +229,9 @@ void drawHandTrace(Mat img) {
 	if(rightHand.at(index()).isPresent()) {
 		//polylines(img, rightHand[index()].getMinRect()., 4, 1, true, BLUE, 2, 8, 1);
 		ellipse(img, rightHand[index()].getMinRect(), BLUE, 2, 8);
-		for(uint i = index(); i < index() + hand_window_size; i++) {
-			int current = (i + 1) % hand_window_size;
-			int previous = i % hand_window_size;
+		for(uint i = 0; i+1 < hand_window_size; i++) {
+			int current = previousIndex(i);
+			int previous = previousIndex(i + 1);
 			if(rightHand.at(current).isPresent() && rightHand.at(previous).isPresent()) {
 				if(setting.left_grab_mode) {
 					line(img, rightHand.at(previous).getMinCircleCenter(), rightHand.at(current).getMinCircleCenter(), BLUE, 5, 4, 0);
@@ -356,15 +380,16 @@ void start(){
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
 		if(!setting.is_daemon) {
 			imshow("Binary", binaryImg);
-			depthImage = Mat(currentFrame.size(), CV_32SC1);
+			//depthImage = Mat(currentFrame.size(), CV_32SC1);
 			//TODO: init depthImage with CV_32FC1
-			depthFromDiffusion(currentFrame, depthImage);
-			imshow("depth", depthImage);
+			//depthFromDiffusion(currentFrame, depthImage);
+			//imshow("depth", depthImage);
 		}
 
 		//findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
-		findContours(binaryImg, contours, hiearchy,  RETR_TREE, CHAIN_APPROX_SIMPLE);
-		//findContours( binaryImg, contours, RETR_TREE, CV_CHAIN_APPROX_SIMPLE );
+		//findContours(binaryImg, contours, hiearchy,  RETR_TREE, CHAIN_APPROX_SIMPLE);
+		//findContours(binaryImg, contours, hiearchy,  RETR_EXTERNAL|RETR_CCOMP, CHAIN_APPROX_NONE);
+		findContours( binaryImg, contours, RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
 
 		//Canny(previousFrame, previousFrame, 0, 30, 3);
 		if(!setting.is_daemon) {
@@ -372,13 +397,14 @@ void start(){
 			cvtColor(currentFrame, trackingResults, CV_GRAY2BGR);
 
 			if (contours.size() > 0) {
-				int index = 0;
-				for (; index >= 0; index = hiearchy[index][0]) {
-					drawContours(trackingResults, contours, index, OLIVE, 1, 4, hiearchy, 0);
-
-				}
+//				int index = 0;
+//				for (; index >= 0; index = hiearchy[index][0]) {
+//					drawContours(trackingResults, contours, index, OLIVE, 1, 4, hiearchy, 0);
+//				}
+				drawContours(trackingResults, contours, -1, OLIVE, 1, 4);
 			}
 		}
+
 		//drawContours(watershed_markers, contours, -1, CV_RGB(0, 0, 0)); //TODO watershed testing
 		//TODO: watershed testing
 		//imshow("Watershed before", watershed_markers);
@@ -387,7 +413,7 @@ void start(){
 		//watershed(watershed_image, depthImage);
 		//imshow("Watershed", depthImage);
 
-		findHands(contours, hiearchy);
+		findHands(contours);
 
 		if(numberOfHands() > 0) {
 			findGoodFeatures(previousFrame, currentFrame);
@@ -463,10 +489,13 @@ void start(){
 /**
  * Find two largest blobs which hopefully represent the two hands
  */
-void findHands(vector<vector<cv::Point> > contours, vector<Vec4i> hiearchy) {
+void findHands(vector<vector<cv::Point> > contours) {
+	leftHand[index()].clear();
+	rightHand[index()].clear();
 	Point2f tmpCenter, max1Center, max2Center;
 	float tmpRadius = 0, max1Radius = 0, max2Radius = 0;
 	int max1ContourIndex = 0, max2ContourIndex = 0;
+
 
 	for (uint i = 0; i < contours.size(); i++) {
 		if(contours[i].size() > 0) {
@@ -563,7 +592,7 @@ int previousIndex() {
 }
 
 /**
- * return ith hand from the history.
+ * return ith previous hand from the history.
  * @Precondition: i is smaller than hand_window_size
  */
 int previousIndex(int i) {
@@ -578,24 +607,43 @@ int previousIndex(int i) {
  * @Precondition: assignFeaturedToHand() is executed and leftRightStatus[i] is filled
  */
 void drawFeatures(Mat img) {
-	for(int i = 0; i < maxCorners; i++) {
-		if(leftRightStatus[i] == 1) {
-			// Left hand
-			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), ORANGE);
-			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, ORANGE);
-		} else if(leftRightStatus[i] == 2) {
-			// Right hand
-			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), BLUE);
-			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, BLUE);
-		} else {
-			// None
-			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), PINK);
-		}
-
-		if((uchar)flowStatus[i] == 1) {
-			line(img, currentCorners[i], previousCorners[i], GREEN, 2, 8, 0);
+	//Left hand
+	if(leftHand.at(index()).isPresent()) {
+		vector<Point2f> points = leftHand.at(index()).getFeatures();
+		vector<Point2f> vectors = leftHand.at(index()).getVectors();
+		for (uint i = 0; i < points.size(); i++) {
+			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), ORANGE);
+			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
 		}
 	}
+
+	//Right hand
+	if(rightHand.at(index()).isPresent()) {
+		vector<Point2f> points = rightHand.at(index()).getFeatures();
+		vector<Point2f> vectors = rightHand.at(index()).getVectors();
+		for (uint i = 0; i < points.size(); i++) {
+			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), BLUE);
+			line(img, points[i], (points[i] + vectors[i]), BLUE, 2, 8, 0);
+		}
+	}
+//	for(int i = 0; i < maxCorners; i++) {
+//		if(leftRightStatus[i] == 1) {
+//			// Left hand
+//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), ORANGE);
+//			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, ORANGE);
+//		} else if(leftRightStatus[i] == 2) {
+//			// Right hand
+//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), BLUE);
+//			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, BLUE);
+//		} else {
+//			// None
+//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), PINK);
+//		}
+//
+//		if((uchar)flowStatus[i] == 1) {
+//			line(img, currentCorners[i], previousCorners[i], GREEN, 2, 8, 0);
+//		}
+//	}
 }
 
 /**
@@ -614,34 +662,26 @@ void drawMeanAndStdDev(Mat img) {
 }
 
 /**
- * assign features to hand(s)if at least one hand exist
+ * assign features and their corresponding vector to hand(s) if the feature
+ * has been successfully tracked and a hand contain it
  */
 void assignFeaturesToHands() {
-	leftRightStatus.clear();
 	for(int i = 0; i < maxCorners; i++) {
-		if(leftHand.at(index()).isPresent() && leftHand.at(index()).hasPointInside(currentCorners[i])) {
-			//point is inside contour of the left hand
-			leftRightStatus.push_back(1);
-		} else if(rightHand.at(index()).isPresent() && rightHand.at(index()).hasPointInside(currentCorners[i])) {
-			leftRightStatus.push_back(2);
-		} else {
-			//this is noise or some other object
-			leftRightStatus.push_back(0); //Neither hand
+		if(flowStatus[i] == 1) {
+			if(leftHand.at(index()).isPresent() && leftHand.at(index()).hasPointInside(currentCorners[i])) {
+				//point is inside contour of the left hand
+				Point2f vector = currentCorners[i] - previousCorners[i];
+				leftHand.at(index()).addFeatureAndVector(currentCorners[i], vector);
+			} else if(rightHand.at(index()).isPresent() && rightHand.at(index()).hasPointInside(currentCorners[i])) {
+				Point2f vector = currentCorners[i] - previousCorners[i];
+				rightHand.at(index()).addFeatureAndVector(currentCorners[i], vector);
+			} else {
+				//this is noise or some other object
+				//leftRightStatus.push_back(0); //Neither hand
+				//Don't worry about it!
+			}
 		}
 	}
-//	for(int i = 0; i < maxCorners; i++) {
-//		if(leftHand.at(index()).isPresent() &&
-//				getDistance(currentCorners[i], leftHand.at(index()).getMinCircleCenter()) < leftHand.at(index()).getMinCircleRadius()) {
-//			//point is inside contour of the left hand
-//			leftRightStatus.push_back(1);
-//		} else if(rightHand.at(index()).isPresent() &&
-//				getDistance(currentCorners[i], rightHand.at(index()).getMinCircleCenter()) < rightHand.at(index()).getMinCircleRadius()) {
-//			leftRightStatus.push_back(2);
-//		} else {
-//			//this is noise or some other object
-//			leftRightStatus.push_back(0); //Neither hand
-//		}
-//	}
 }
 
 /**
@@ -656,48 +696,11 @@ float getDistance(const Point2f a, const Point2f b) {
  * @Precondition: assignFeatureToHands is executed
  */
 void meanAndStdDevExtract() {
-	//first calculate the mean
-	Point2f leftMean, rightMean;
-	uint leftCount = 0, rightCount = 0;
-	for(int i = 0; i < maxCorners; i++) {
-		if(leftRightStatus[i] == 1) {
-			//Left hand
-			leftMean += currentCorners[i];
-			leftCount++;
-		} else if(leftRightStatus[i] == 2) {
-			//Right hand
-			rightMean += currentCorners[i];
-			rightCount++;
-		} else {
-			//well, nothing if the feature is not assigned to a hand
-		}
+	if(leftHand.at(index()).isPresent()) {
+		leftHand.at(index()).calcMeanStdDev();
 	}
-
-	leftMean = Point2f(leftMean.x / leftCount, leftMean.y / leftCount);
-	rightMean = Point2f(rightMean.x / rightCount, rightMean.y / rightCount);
-
-	//Now that we have the mean, calculate stdDev
-	float leftStdDev = 0, rightStdDev = 0;
-	for(int i = 0; i < maxCorners; i++) {
-		if(leftRightStatus[i] == 1) {
-			//Left hand
-			leftStdDev += getDistance(leftMean, currentCorners[i]);
-		} else if(leftRightStatus[i] == 2) {
-			//Right hand
-			rightStdDev += getDistance(rightMean, currentCorners[i]);
-		} else {
-			//feature is not assigned to a hand
-		}
-	}
-	leftStdDev = leftStdDev / leftCount;
-	rightStdDev = rightStdDev / rightCount;
-
-	//TODO: finish this function
-	if(leftCount > 0) {
-		leftHand.at(index()).setFeatureMeanStdDev(leftMean, leftStdDev);
-	}
-	if(rightCount > 0) {
-		rightHand.at(index()).setFeatureMeanStdDev(rightMean, rightStdDev);
+	if(rightHand.at(index()).isPresent()){
+		rightHand.at(index()).calcMeanStdDev();
 	}
 }
 
@@ -711,17 +714,17 @@ void featureDepthExtract(const Mat img) {
 	Scalar stdDev;
 	Scalar mean;
 	featureDepth.clear();
-	for(int i = 0; i < maxCorners; i++) {
-		if(leftRightStatus[i] == 1 || leftRightStatus[i] == 2) {
-			//left or right hand feature
-			rect = Rect(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2, blockSize, blockSize);
-			feature = Mat(img, rect);
-
-			//meanStdDev(feature, mean, stdDev);
-			//featureDepth.push_back(stdDev.val[0]);
-		} else {
-			//Doesnt matter if the feature is not assigned to a hand, so set to -1
-			featureDepth.push_back(-1);
-		}
-	}
+//	for(int i = 0; i < maxCorners; i++) {
+//		if(leftRightStatus[i] == 1 || leftRightStatus[i] == 2) {
+//			//left or right hand feature
+//			rect = Rect(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2, blockSize, blockSize);
+//			feature = Mat(img, rect);
+//
+//			//meanStdDev(feature, mean, stdDev);
+//			//featureDepth.push_back(stdDev.val[0]);
+//		} else {
+//			//Doesnt matter if the feature is not assigned to a hand, so set to -1
+//			featureDepth.push_back(-1);
+//		}
+//	}
 }

@@ -22,6 +22,9 @@
 #include "cv.h"
 #include "Hand.h"
 #include "Setting.h"
+#include <utility>
+
+using namespace std;
 
 Setting setting = Setting::Instance();
 
@@ -33,6 +36,9 @@ Hand::Hand(handSide s) {
 	handCount++;
 }
 
+/**
+ * Return LEFT_HAND or RIGHT_HAND
+ */
 handSide Hand::getHandSide() {
 	return side;
 }
@@ -45,6 +51,9 @@ bool Hand::isPresent() {
 	return present;
 }
 
+/**
+ * set whether this hand is being tracked or has gone out of view
+ */
 void Hand::setPresent(bool p) {
 	present = p;
 }
@@ -149,13 +158,6 @@ float Hand::getAngle() {
 	return this->minRect.angle;
 }
 
-/**
- * Set this hand presence to false and do any other additional cleanup if necessary
- */
-void Hand::clear() {
-	setPresent(false);
-	//TODO: Check for anything else I need to do here to prevent error or release memory
-}
 
 /**
  * Set standard deviation and location of mean for features belonging to this hand
@@ -181,13 +183,6 @@ float Hand::getFeatureStdDev() {
 }
 
 /**
- * return the number of features that belong to this hand
- */
-int Hand::getNumOfFeatures() {
-	return numOfFeatures;
-}
-
-/**
  * set the number of features that belong to this hand
  */
 void Hand::setNumOfFeatures(int nof) {
@@ -199,4 +194,57 @@ void Hand::setNumOfFeatures(int nof) {
  */
 bool Hand::hasPointInside(Point2f point) {
 	return cv::pointPolygonTest(Mat(getContour()).reshape(2), point, false) > -1;
+}
+
+/**
+ * add location of a features of this hand and the vector associated with it
+ */
+void Hand::addFeatureAndVector(Point2f feature, Point2f vector) {
+	features.push_back(feature);
+	vectors.push_back(vector);
+}
+
+/**
+ * return the number of features associated with this hand
+ * @Precondition: addFeatureAndVector has been called for all the features of this hand
+ */
+int Hand::getNumOfFeatures() {
+	return features.size();
+}
+
+/**
+ * return a list of features and their associated vectors
+ */
+vector<Point2f> Hand::getFeatures() {
+	return features;
+}
+
+/**
+ * Return a vector of points representing "Vectors" associated with features of this hand
+ */
+vector<Point2f> Hand::getVectors() {
+	return vectors;
+}
+
+/**
+ * This function needs to be called one time after all the features have been added.
+ * After calling this function you can use getFeatureMean() and getFeatureStdDev()
+ */
+void Hand::calcMeanStdDev() {
+	cv::Scalar mean;
+	cv::Scalar stdDev;
+	cv::meanStdDev(Mat(getFeatures()).reshape(2), mean, stdDev);
+	featureMean.x = (float)mean.val[0];
+	featureMean.y = (float)mean.val[1];
+	featureStdDev = (float)(stdDev.val[0] + stdDev.val[1]);
+}
+
+/**
+ * Set this hand presence to false and do any other additional cleanup if necessary
+ */
+void Hand::clear() {
+	setPresent(false);
+	features.clear();
+	vectors.clear();
+	//TODO: Check for anything else I need to do here to prevent error or release memory
 }
