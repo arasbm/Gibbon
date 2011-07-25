@@ -48,7 +48,7 @@ using namespace cv;
 
 void processKey(char key);
 void addFeatureMeanStdDev(bool left, Point2f mean, float stdDev);
-void findHands(vector<vector<cv::Point> > contours);
+void findHands(vector<vector<cv::Point> > contours, vector<Vec4i> hiearchy);
 void opencvConnectedComponent(Mat* src, Mat* dst);
 void init();
 void start();
@@ -362,7 +362,8 @@ void start(){
 			imshow("depth", depthImage);
 		}
 
-		findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
+		//findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
+		findContours(binaryImg, contours, hiearchy,  RETR_TREE, CHAIN_APPROX_SIMPLE);
 		//findContours( binaryImg, contours, RETR_TREE, CV_CHAIN_APPROX_SIMPLE );
 
 		//Canny(previousFrame, previousFrame, 0, 30, 3);
@@ -386,14 +387,14 @@ void start(){
 		//watershed(watershed_image, depthImage);
 		//imshow("Watershed", depthImage);
 
-		findHands(contours);
+		findHands(contours, hiearchy);
 
 		if(numberOfHands() > 0) {
 			findGoodFeatures(previousFrame, currentFrame);
 			drawHandTrace(trackingResults);
 			assignFeaturesToHands();
 			//featureDepthExtract(trackingResults);
-
+			//imshow("test", leftHand[index()].getContour());
 			drawFeatures(trackingResults);
 			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
@@ -462,7 +463,7 @@ void start(){
 /**
  * Find two largest blobs which hopefully represent the two hands
  */
-void findHands(vector<vector<cv::Point> > contours) {
+void findHands(vector<vector<cv::Point> > contours, vector<Vec4i> hiearchy) {
 	Point2f tmpCenter, max1Center, max2Center;
 	float tmpRadius = 0, max1Radius = 0, max2Radius = 0;
 	int max1ContourIndex = 0, max2ContourIndex = 0;
@@ -494,15 +495,15 @@ void findHands(vector<vector<cv::Point> > contours) {
 			//max1 is on the right
 			rightHand[index()].setMinCircleCenter(max1Center);
 			rightHand[index()].setMinCircleRadius(max1Radius);
-			rightHand[index()].setContour(Mat(contours[max1ContourIndex]));
-			rightHand[index()].setMinRect(minAreaRect(rightHand[index()].getContour()));
+			rightHand[index()].setContour(contours[max1ContourIndex]);
+			rightHand[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
 			rightHand[index()].setPresent(true);
 			if(max2Radius > setting.radius_threshold) {
 				//max2 is on the left
 				leftHand[index()].setMinCircleCenter(max2Center);
 				leftHand[index()].setMinCircleRadius(max2Radius);
-				leftHand[index()].setContour(Mat(contours[max2ContourIndex]));
-				leftHand[index()].setMinRect(minAreaRect(leftHand[index()].getContour()));
+				leftHand[index()].setContour(contours[max2ContourIndex]);
+				leftHand[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
 				leftHand[index()].setPresent(true);
 			} else {
 				//Clear left hand
@@ -512,15 +513,15 @@ void findHands(vector<vector<cv::Point> > contours) {
 			//max1 is on the left
 			leftHand[index()].setMinCircleCenter(max1Center);
 			leftHand[index()].setMinCircleRadius(max1Radius);
-			leftHand[index()].setContour(Mat(contours[max1ContourIndex]));
-			leftHand[index()].setMinRect(minAreaRect(leftHand[index()].getContour()));
+			leftHand[index()].setContour(contours[max1ContourIndex]);
+			leftHand[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
 			leftHand[index()].setPresent(true);
 			if(max2Radius > setting.radius_threshold) {
 				//max2 is on the right
 				rightHand[index()].setMinCircleCenter(max2Center);
 				rightHand[index()].setMinCircleRadius(max2Radius);
-				rightHand[index()].setContour(Mat(contours[max2ContourIndex]));
-				rightHand[index()].setMinRect(minAreaRect(rightHand[index()].getContour()));
+				rightHand[index()].setContour(contours[max2ContourIndex]);
+				rightHand[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
 				rightHand[index()].setPresent(true);
 			} else {
 				rightHand[index()].clear();
@@ -617,32 +618,30 @@ void drawMeanAndStdDev(Mat img) {
  */
 void assignFeaturesToHands() {
 	leftRightStatus.clear();
-//	for(int i = 0; i < maxCorners; i++) {
-//		if(leftHand.at(index()).isPresent() &&
-//				(pointPolygonTest(leftHand.at(index()).getContour(), currentCorners[i], false) > -0.1)) {
-//			//point is inside contour of the left hand
-//			leftRightStatus.push_back(1);
-//		} else if(rightHand.at(index()).isPresent() &&
-//				(pointPolygonTest(rightHand.at(index()).getContour(), currentCorners[i], false) > -0.1)) {
-//			leftRightStatus.push_back(2);
-//		} else {
-//			//this is noise or some other object
-//			leftRightStatus.push_back(0); //Neither hand
-//		}
-//	}
 	for(int i = 0; i < maxCorners; i++) {
-		if(leftHand.at(index()).isPresent() &&
-				getDistance(currentCorners[i], leftHand.at(index()).getMinCircleCenter()) < leftHand.at(index()).getMinCircleRadius()) {
+		if(leftHand.at(index()).isPresent() && leftHand.at(index()).hasPointInside(currentCorners[i])) {
 			//point is inside contour of the left hand
 			leftRightStatus.push_back(1);
-		} else if(rightHand.at(index()).isPresent() &&
-				getDistance(currentCorners[i], rightHand.at(index()).getMinCircleCenter()) < rightHand.at(index()).getMinCircleRadius()) {
+		} else if(rightHand.at(index()).isPresent() && rightHand.at(index()).hasPointInside(currentCorners[i])) {
 			leftRightStatus.push_back(2);
 		} else {
 			//this is noise or some other object
 			leftRightStatus.push_back(0); //Neither hand
 		}
 	}
+//	for(int i = 0; i < maxCorners; i++) {
+//		if(leftHand.at(index()).isPresent() &&
+//				getDistance(currentCorners[i], leftHand.at(index()).getMinCircleCenter()) < leftHand.at(index()).getMinCircleRadius()) {
+//			//point is inside contour of the left hand
+//			leftRightStatus.push_back(1);
+//		} else if(rightHand.at(index()).isPresent() &&
+//				getDistance(currentCorners[i], rightHand.at(index()).getMinCircleCenter()) < rightHand.at(index()).getMinCircleRadius()) {
+//			leftRightStatus.push_back(2);
+//		} else {
+//			//this is noise or some other object
+//			leftRightStatus.push_back(0); //Neither hand
+//		}
+//	}
 }
 
 /**

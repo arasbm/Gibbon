@@ -49,8 +49,8 @@ public:
 	Point2f getMinCircleCenter();
 	void setMinCircleRadius(int radius);
 	int getMinCircleRadius();
-	Mat getContour();
-	void setContour(Mat contour);
+	vector<cv::Point> getContour();
+	void setContour(vector<cv::Point> contour);
 	int getHandNumber();
 	void clear();
 	gesture getGesture();
@@ -64,13 +64,15 @@ public:
 	float getFeatureStdDev();
 	void setNumOfFeatures(int numOfFeatures);
 	int getNumOfFeatures();
+	bool hasPointInside(Point2f point);
 
 private:
 	handSide side;
 	gesture handGesture;
 	Point2f circleCenter; //center of enclosing circle
 	Point2f featureMean; //mean location of features
-	Mat contour; //the contour of this hand
+	vector<cv::Point> contour;
+
 	int circleRadius; //radius of enclosing circle
 	float featureStdDev; //standard deviation of features
 	RotatedRect minRect;

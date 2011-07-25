@@ -19,6 +19,7 @@
  *  along with Gibbon.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "cv.h"
 #include "Hand.h"
 #include "Setting.h"
 
@@ -51,11 +52,14 @@ void Hand::setPresent(bool p) {
 /**
  * return the contour of this hand
  */
-Mat Hand::getContour() {
+vector<cv::Point> Hand::getContour() {
 	return contour;
 }
 
-void Hand::setContour(Mat handContour) {
+/**
+ * This function will receive a vector<cv::Point>  as input parameter
+ */
+void Hand::setContour(vector<cv::Point> handContour) {
 	contour = handContour;
 }
 
@@ -183,3 +187,16 @@ int Hand::getNumOfFeatures() {
 	return numOfFeatures;
 }
 
+/**
+ * set the number of features that belong to this hand
+ */
+void Hand::setNumOfFeatures(int nof) {
+	numOfFeatures = nof;
+}
+
+/**
+ * if the point is inside the hand contour returns true, otherwise return false
+ */
+bool Hand::hasPointInside(Point2f point) {
+	return cv::pointPolygonTest(Mat(getContour()).reshape(2), point, false) > -1;
+}
