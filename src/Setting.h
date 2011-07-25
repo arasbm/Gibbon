@@ -91,7 +91,7 @@ private:
 		/*** Global settings ***/
 		lower_threshold = 10;
 		upper_threshold = 200;
-		radius_threshold = 20;
+		radius_threshold = 30;
 		median_blur_factor = 7;
 		save_input_video = false;
 		save_output_video = false;
