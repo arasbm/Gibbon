@@ -62,6 +62,8 @@ public:
 	void setFeatureMeanStdDev(Point2f mean, float stdDev);
 	Point2f getFeatureMean();
 	float getFeatureStdDev();
+	void setNumOfFeatures(int numOfFeatures);
+	int getNumOfFeatures();
 
 private:
 	handSide side;
@@ -77,6 +79,7 @@ private:
 	float gestureX; //X position of the gesture in the range [0 1]
 	float gestureY; //Y position of the gesture in the range [0 1]
 	float angle; //the angle in the range [0 2PI]
+	int numOfFeatures; //number of features detected that belong to this hand
 
 };
 

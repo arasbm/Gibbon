@@ -64,7 +64,7 @@ void Hand::setContour(Mat handContour) {
  * as calculated with cv::minAreaRect function
  */
 void Hand::setMinRect(RotatedRect rect) {
-	minRect = rect;
+	minRect = RotatedRect(rect.center, rect.size, rect.angle + 90);
 }
 
 RotatedRect Hand::getMinRect() {
@@ -174,5 +174,12 @@ Point2f Hand::getFeatureMean() {
  */
 float Hand::getFeatureStdDev() {
 	return featureStdDev;
+}
+
+/**
+ * return the number of features that belong to this hand
+ */
+int Hand::getNumOfFeatures() {
+	return numOfFeatures;
 }
 

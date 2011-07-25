@@ -56,6 +56,7 @@ public:
 	/*** Global settings ***/
 	int lower_threshold;
 	int upper_threshold;
+	int radius_threshold; //how big blobs should be to be considered as a hand
 	int median_blur_factor;
 	bool save_input_video;
 	bool save_output_video;
@@ -90,12 +91,13 @@ private:
 		/*** Global settings ***/
 		lower_threshold = 10;
 		upper_threshold = 200;
+		radius_threshold = 20;
 		median_blur_factor = 7;
 		save_input_video = false;
 		save_output_video = false;
 		subtract_background = false;
 		send_tuio = true;
-		verbose = false; //when in verbose mode, process info is printed to terminal in various places
+		verbose = true; //when in verbose mode, process info is printed to terminal in various places
 		is_daemon = false; //when in daemon mode no video is displayed and no drawing happens
 		source_recording_path = "/home/arasbm/Desktop/grab_and_release_data/source.avi";
 		result_recording_path = "/home/arasbm/Desktop/grab_and_release_data/result.avi";

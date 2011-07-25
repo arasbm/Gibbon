@@ -64,6 +64,7 @@ int numberOfHands();
 int index();
 void updateMessage();
 int previousIndex();
+int previousIndex(int i);
 
 /** OpenCV variables **/
 CvPoint mouseLocation;
@@ -72,8 +73,8 @@ VideoWriter resultWriter;
 
 /** Hand tracking structures (temporal tracking window) **/
 const uint hand_window_size = 5; //Number of frames to keep track of hand. Minimum of two is needed
-vector<Hand> leftHand(hand_window_size, Hand(LEFT_HAND));
-vector<Hand> rightHand(hand_window_size, Hand(RIGHT_HAND));
+vector<Hand> leftHand(hand_window_size, Hand(LEFT_HAND)); //circular: see index() function
+vector<Hand> rightHand(hand_window_size, Hand(RIGHT_HAND)); //circular: see index() function
 
 /** goodFeaturesToTrack structure and settings **/
 vector<Point2f> previousCorners;
@@ -287,8 +288,8 @@ void start(){
 	Mat tmpColor;
 	Mat depthImage;
 
-	Mat watershed_markers = cvCreateImage( setting.imageSize, IPL_DEPTH_32S, 1 );
-	Mat watershed_image;
+	//Mat watershed_markers = cvCreateImage( setting.imageSize, IPL_DEPTH_32S, 1 );
+	//Mat watershed_image;
 
 	char key = 'a';
 	timeval first_time, second_time; //for fps calculation
@@ -332,7 +333,7 @@ void start(){
 		}
 
 		if(!setting.is_daemon) {
-			key = cvWaitKey(20);
+			key = cvWaitKey(10);
 			processKey(key);
 		}
 
@@ -396,7 +397,7 @@ void start(){
 			drawFeatures(trackingResults);
 			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
-			//TODO: Fix: drawMeanAndStdDev(trackingResults);
+			drawMeanAndStdDev(trackingResults);
 			checkGrab();
 			checkRelease();
 		} else {
@@ -488,8 +489,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 	}
 
 	//Detect the two largest circles that represent hands, if they exist
-	int radius_threshold = 10;
-	if(max1Radius > radius_threshold) {
+	if(max1Radius > setting.radius_threshold) {
 		if(max1Center.x > max2Center.x) {
 			//max1 is on the right
 			rightHand[index()].setMinCircleCenter(max1Center);
@@ -497,7 +497,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 			rightHand[index()].setContour(Mat(contours[max1ContourIndex]));
 			rightHand[index()].setMinRect(minAreaRect(rightHand[index()].getContour()));
 			rightHand[index()].setPresent(true);
-			if(max2Radius > radius_threshold) {
+			if(max2Radius > setting.radius_threshold) {
 				//max2 is on the left
 				leftHand[index()].setMinCircleCenter(max2Center);
 				leftHand[index()].setMinCircleRadius(max2Radius);
@@ -515,7 +515,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 			leftHand[index()].setContour(Mat(contours[max1ContourIndex]));
 			leftHand[index()].setMinRect(minAreaRect(leftHand[index()].getContour()));
 			leftHand[index()].setPresent(true);
-			if(max2Radius > radius_threshold) {
+			if(max2Radius > setting.radius_threshold) {
 				//max2 is on the right
 				rightHand[index()].setMinCircleCenter(max2Center);
 				rightHand[index()].setMinCircleRadius(max2Radius);
@@ -528,6 +528,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 		}
 	} else {
 		rightHand[index()].clear();
+		leftHand[index()].clear();
 	}
 }
 
@@ -561,6 +562,17 @@ int previousIndex() {
 }
 
 /**
+ * return ith hand from the history.
+ * @Precondition: i is smaller than hand_window_size
+ */
+int previousIndex(int i) {
+	if(i >= hand_window_size) {
+		verbosePrint("Incorrect index given to previousIndex(int i) function");
+	}
+	return (frameCount - i) % hand_window_size;
+}
+
+/**
  * Draw features based on the hand they belong to
  * @Precondition: assignFeaturedToHand() is executed and leftRightStatus[i] is filled
  */
@@ -590,16 +602,14 @@ void drawFeatures(Mat img) {
  * the hand temporal window
  */
 void drawMeanAndStdDev(Mat img) {
-//	int lastLeftIndex = leftHandFeatureMean.size() - 1;
-//	int lastRightIndex = rightHandFeatureMean.size() - 1;
-//	if(lastLeftIndex >= 0 && leftHandCenter.size() > 0) {
-//		circle(img, leftHandFeatureMean.at(lastLeftIndex), leftHandFeatureStdDev.at(lastLeftIndex), YELLOW, 1, 4, 0);
-//		line(img, leftHandFeatureMean.at(lastLeftIndex), leftHandCenter.at(leftHandCenter.size() - 1), YELLOW, 1, 4, 0);
-//	}
-//	if(lastRightIndex >= 0 && rightHandCenter.size() > 0) {
-//		circle(img, rightHandFeatureMean.at(lastRightIndex), rightHandFeatureStdDev.at(lastRightIndex), YELLOW, 1, 4, 0);
-//		line(img, rightHandFeatureMean.at(lastRightIndex), rightHandCenter.at(rightHandCenter.size() - 1), YELLOW, 1, 4, 0);
-//	}
+	if(leftHand.at(index()).isPresent()) {
+		circle(img, leftHand.at(index()).getFeatureMean(), leftHand.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
+		line(img, leftHand.at(index()).getFeatureMean(), leftHand.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
+	}
+	if(rightHand.at(index()).isPresent()) {
+		circle(img, rightHand.at(index()).getFeatureMean(), rightHand.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
+		line(img, rightHand.at(index()).getFeatureMean(), rightHand.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
+	}
 }
 
 /**
