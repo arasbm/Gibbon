@@ -424,7 +424,7 @@ void start(){
 			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
 			drawMeanAndStdDev(trackingResults);
-			checkRotate();
+			checkGrab();
 			checkRelease();
 		} else {
 			//TODO: is any cleanup necessary here?
