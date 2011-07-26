@@ -138,28 +138,36 @@ void init() {
  */
 void checkGrab() {
 	//need at least 3 hands confirming the gesture
-	int factor = 10;
+	int factor = 5;
 	int min_feature = 5;
 	//Left hand
-	if(leftHand.at(index()).isPresent() && leftHand.at(previousIndex(1)).isPresent() && leftHand.at(previousIndex(2)).isPresent() ) {
+	if(leftHand.at(index()).isPresent() &&
+			leftHand.at(previousIndex(1)).isPresent() &&
+			leftHand.at(previousIndex(2)).isPresent() &&
+			leftHand.at(previousIndex(3)).isPresent()) {
 		if(leftHand.at(index()).getNumOfFeatures() > min_feature &&
 				(leftHand.at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
 				(leftHand.at(previousIndex(2)).getNumOfFeatures() > min_feature)) {
 			if(leftHand.at(index()).getFeatureStdDev() + factor < leftHand.at(previousIndex(1)).getFeatureStdDev() &&
 					(leftHand.at(previousIndex(1)).getFeatureStdDev() + factor < leftHand.at(previousIndex(2)).getFeatureStdDev())) {
 				verbosePrint(">>Left GRAB<<");
+				leftHand.at(index()).setGesture(GESTURE_GRAB);
 			}
 		}
 	}
 
 	//right hand
-	if(rightHand.at(index()).isPresent() && rightHand.at(previousIndex(1)).isPresent() && rightHand.at(previousIndex(2)).isPresent() ) {
+	if(rightHand.at(index()).isPresent() &&
+			rightHand.at(previousIndex(1)).isPresent() &&
+			rightHand.at(previousIndex(2)).isPresent() &&
+			rightHand.at(previousIndex(3)).isPresent()) {
 		if(rightHand.at(index()).getNumOfFeatures() > min_feature &&
 				(rightHand.at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
 				(rightHand.at(previousIndex(2)).getNumOfFeatures() > min_feature)) {
 			if(rightHand.at(index()).getFeatureStdDev() + factor < rightHand.at(previousIndex(1)).getFeatureStdDev() &&
 					(rightHand.at(previousIndex(1)).getFeatureStdDev() + factor < rightHand.at(previousIndex(2)).getFeatureStdDev())) {
 				verbosePrint(">>Right GRAB<<");
+				rightHand.at(index()).setGesture(GESTURE_GRAB);
 			}
 		}
 	}
@@ -494,10 +502,10 @@ void findHands(vector<vector<cv::Point> > contours) {
 	Point2f tmpCenter, max1Center, max2Center;
 	float tmpRadius = 0, max1Radius = 0, max2Radius = 0;
 	int max1ContourIndex = 0, max2ContourIndex = 0;
-
+	int contour_size_threshold = 40;
 
 	for (uint i = 0; i < contours.size(); i++) {
-		if(contours[i].size() > 0) {
+		if(contours[i].size() > contour_size_threshold) {
 			minEnclosingCircle(Mat(contours[i]), tmpCenter, tmpRadius);
 			if (tmpRadius > max1Radius) {
 				if (max1Radius > max2Radius) {
@@ -518,43 +526,43 @@ void findHands(vector<vector<cv::Point> > contours) {
 	}
 
 	//Detect the two largest circles that represent hands, if they exist
-	if(max1Radius > setting.radius_threshold) {
+	if(max1Radius > setting.radius_threshold && max2Radius > setting.radius_threshold) {
 		if(max1Center.x > max2Center.x) {
-			//max1 is on the right
-			rightHand[index()].setMinCircleCenter(max1Center);
-			rightHand[index()].setMinCircleRadius(max1Radius);
-			rightHand[index()].setContour(contours[max1ContourIndex]);
-			rightHand[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-			rightHand[index()].setPresent(true);
-			if(max2Radius > setting.radius_threshold) {
-				//max2 is on the left
-				leftHand[index()].setMinCircleCenter(max2Center);
-				leftHand[index()].setMinCircleRadius(max2Radius);
-				leftHand[index()].setContour(contours[max2ContourIndex]);
-				leftHand[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-				leftHand[index()].setPresent(true);
-			} else {
-				//Clear left hand
-				leftHand[index()].clear();
-			}
-		} else {
 			//max1 is on the left
 			leftHand[index()].setMinCircleCenter(max1Center);
 			leftHand[index()].setMinCircleRadius(max1Radius);
 			leftHand[index()].setContour(contours[max1ContourIndex]);
 			leftHand[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
 			leftHand[index()].setPresent(true);
-			if(max2Radius > setting.radius_threshold) {
-				//max2 is on the right
-				rightHand[index()].setMinCircleCenter(max2Center);
-				rightHand[index()].setMinCircleRadius(max2Radius);
-				rightHand[index()].setContour(contours[max2ContourIndex]);
-				rightHand[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-				rightHand[index()].setPresent(true);
-			} else {
-				rightHand[index()].clear();
-			}
+			//and max2 is on the right
+			rightHand[index()].setMinCircleCenter(max2Center);
+			rightHand[index()].setMinCircleRadius(max2Radius);
+			rightHand[index()].setContour(contours[max2ContourIndex]);
+			rightHand[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
+			rightHand[index()].setPresent(true);
+		} else {
+			//max1 is on the right
+			rightHand[index()].setMinCircleCenter(max1Center);
+			rightHand[index()].setMinCircleRadius(max1Radius);
+			rightHand[index()].setContour(contours[max1ContourIndex]);
+			rightHand[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+			rightHand[index()].setPresent(true);
+			//max2 is therefore on the left
+			leftHand[index()].setMinCircleCenter(max2Center);
+			leftHand[index()].setMinCircleRadius(max2Radius);
+			leftHand[index()].setContour(contours[max2ContourIndex]);
+			leftHand[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
+			leftHand[index()].setPresent(true);
 		}
+	} else if(max1Radius > setting.radius_threshold ){
+			//Assume max1 is the left hand, since there is only one hand
+			leftHand[index()].setMinCircleCenter(max1Center);
+			leftHand[index()].setMinCircleRadius(max1Radius);
+			leftHand[index()].setContour(contours[max1ContourIndex]);
+			leftHand[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+			leftHand[index()].setPresent(true);
+			//clear right hand
+			rightHand[index()].clear();
 	} else {
 		rightHand[index()].clear();
 		leftHand[index()].clear();
