@@ -1,7 +1,7 @@
 /*
- * Gesture.cpp
+ * GestureTracker.h
  *
- *  Created on: 2011-07-06
+ *  Created on: 2011-07-05
  *      Author: Aras Balali Moghaddam
  *
  *  This file is part of Gibbon (Bimanual Near Touch Tracker).
@@ -19,4 +19,21 @@
  *  along with Gibbon.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Gesture.h"
+#ifndef GESTURETRACKER_H_
+#define GESTURETRACKER_H_
+
+#include "Hand.h"
+#include <boost/lexical_cast.hpp>
+
+class GestureTracker {
+
+public:
+	static void checkGestures(vector<Hand>* h);
+
+private:
+	static bool checkGrab(vector<Hand>* h);
+	static bool checkRelease(vector<Hand>* h);
+	static bool checkRotate(vector<Hand>* h);
+};
+
+#endif /* GESTURETRACKER_H_ */
