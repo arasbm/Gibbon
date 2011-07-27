@@ -22,19 +22,14 @@
 #include <sstream>
 #include <exception>
 
-//OpenCV include files.
-#include "highgui.h"
-#include "cv.h"
-#include "cxcore.h"
-#include "ml.h"
-#include "cxtypes.h"
-
 //Standard includes
 #include <cmath>
 #include <ctime>
 #include <unistd.h>
 #include <sys/time.h>
 
+#include "GibbonMain.h"
+#include "GestureTracker.h"
 #include "Setting.h"
 #include "CameraPGR.h"
 #include "Log.h"
@@ -45,25 +40,6 @@
 
 using namespace std;
 using namespace cv;
-
-void processKey(char key);
-void findHands(vector<vector<cv::Point> > contours);
-void opencvConnectedComponent(Mat* src, Mat* dst);
-void init();
-void start();
-void checkGrab();
-void checkRelease();
-void meanAndStdDevExtract();
-void findGoodFeatures(Mat frame1, Mat frame2);
-void assignFeaturesToHands();
-void drawFeatures(Mat img);
-void drawMeanAndStdDev(Mat img);
-float getDistance(const Point2f a, const Point2f b);
-int numberOfHands();
-int index();
-void updateMessage();
-int previousIndex();
-int previousIndex(int i);
 
 /** OpenCV variables **/
 CvPoint mouseLocation;
@@ -130,53 +106,6 @@ void init() {
 	if(setting.do_undistortion) {
 		undistortion = Undistortion();
 	}
-
-}
-
-/**
- * Check for grab gesture
- */
-void checkGrab() {
-	//need at least 3 hands confirming the gesture
-	int factor = 5;
-	int min_feature = 5;
-	//Left hand
-	if(leftHand.at(index()).isPresent() &&
-			leftHand.at(previousIndex(1)).isPresent() &&
-			leftHand.at(previousIndex(2)).isPresent() &&
-			leftHand.at(previousIndex(3)).isPresent()) {
-		if(leftHand.at(index()).getNumOfFeatures() > min_feature &&
-				(leftHand.at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
-				(leftHand.at(previousIndex(2)).getNumOfFeatures() > min_feature)) {
-			if(leftHand.at(index()).getFeatureStdDev() + factor < leftHand.at(previousIndex(1)).getFeatureStdDev() &&
-					(leftHand.at(previousIndex(1)).getFeatureStdDev() + factor < leftHand.at(previousIndex(2)).getFeatureStdDev())) {
-				verbosePrint(">>Left GRAB<<");
-				leftHand.at(index()).setGesture(GESTURE_GRAB);
-			}
-		}
-	}
-
-	//right hand
-	if(rightHand.at(index()).isPresent() &&
-			rightHand.at(previousIndex(1)).isPresent() &&
-			rightHand.at(previousIndex(2)).isPresent() &&
-			rightHand.at(previousIndex(3)).isPresent()) {
-		if(rightHand.at(index()).getNumOfFeatures() > min_feature &&
-				(rightHand.at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
-				(rightHand.at(previousIndex(2)).getNumOfFeatures() > min_feature)) {
-			if(rightHand.at(index()).getFeatureStdDev() + factor < rightHand.at(previousIndex(1)).getFeatureStdDev() &&
-					(rightHand.at(previousIndex(1)).getFeatureStdDev() + factor < rightHand.at(previousIndex(2)).getFeatureStdDev())) {
-				verbosePrint(">>Right GRAB<<");
-				rightHand.at(index()).setGesture(GESTURE_GRAB);
-			}
-		}
-	}
-}
-
-/**
- * Check for release gesture
- */
-void checkRelease() {
 
 }
 
@@ -388,10 +317,10 @@ void start(){
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
 		if(!setting.is_daemon) {
 			imshow("Binary", binaryImg);
-			//depthImage = Mat(currentFrame.size(), CV_32SC1);
+			depthImage = Mat(currentFrame.size(), CV_32FC1);
 			//TODO: init depthImage with CV_32FC1
-			//depthFromDiffusion(currentFrame, depthImage);
-			//imshow("depth", depthImage);
+			depthFromDiffusion(currentFrame, depthImage);
+			imshow("depth", depthImage);
 		}
 
 		//findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
@@ -432,8 +361,8 @@ void start(){
 			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
 			drawMeanAndStdDev(trackingResults);
-			checkGrab();
-			checkRelease();
+			GestureTracker::checkGestures(&leftHand);
+			GestureTracker::checkGestures(&rightHand);
 		} else {
 			//TODO: is any cleanup necessary here?
 		}
