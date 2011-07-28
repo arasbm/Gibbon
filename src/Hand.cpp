@@ -227,6 +227,13 @@ vector<Point2f> Hand::getVectors() {
 }
 
 /**
+ * return true if there is any gesture assigned to this hand
+ */
+bool Hand::hasGesture() {
+	return (this->getGesture() != GESTURE_NONE);
+}
+
+/**
  * This function needs to be called one time after all the features have been added.
  * After calling this function you can use getFeatureMean() and getFeatureStdDev()
  */

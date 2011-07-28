@@ -116,10 +116,19 @@ void init() {
 void updateMessage() {
 	if(leftHand.at(index()).isPresent() && (!leftHand.at(previousIndex()).isPresent())) {
 		//New hand!
-		message.newHand(leftHand.at(index()));
+		if(leftHand.at(previousIndex()).hasGesture()) {
+			//go back 4 step to get closer to initial location gesture started at
+			message.newHand(leftHand.at(previousIndex(4)));
+		} else {
+			message.newHand(leftHand.at(index()));
+		}
 	} else if(leftHand.at(index()).isPresent()) {
 		//Update existing hand
-		message.updateHand(leftHand.at(index()));
+		if(leftHand.at(index()).hasGesture()) {
+			leftHand.at(index()).setPresent(false);
+		} else {
+			message.updateHand(leftHand.at(index()));
+		}
 	} else if((!leftHand.at(index()).isPresent()) && leftHand.at(previousIndex()).isPresent()) {
 		//ask for remove
 		message.removeHand(leftHand.at(index()));
@@ -129,10 +138,19 @@ void updateMessage() {
 
 	if(rightHand.at(index()).isPresent() && (!rightHand.at(previousIndex()).isPresent())) {
 		//New hand!
-		message.newHand(rightHand.at(index()));
+		if(rightHand.at(previousIndex()).hasGesture()) {
+			//go back 4 step to get closer to initial location gesture started at
+			message.newHand(rightHand.at(previousIndex(4)));
+		} else {
+			message.newHand(rightHand.at(index()));
+		}
 	} else if(rightHand.at(index()).isPresent()) {
 		//Update existing hand
-		message.updateHand(rightHand.at(index()));
+		if(rightHand.at(index()).hasGesture()) {
+			rightHand.at(index()).setPresent(false);
+		} else {
+			message.updateHand(rightHand.at(index()));
+		}
 	} else if((!rightHand.at(index()).isPresent()) && rightHand.at(previousIndex()).isPresent()){
 		//no hand, so ask for remove
 		message.removeHand(rightHand.at(index()));

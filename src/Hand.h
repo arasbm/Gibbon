@@ -33,6 +33,7 @@ typedef enum _handSide {
 } handSide;
 
 typedef enum _gesture {
+	GESTURE_NONE = 0,
 	GESTURE_GRAB = 1,
 	GESTURE_RELEASE = 2
 } gesture;
@@ -70,6 +71,7 @@ public:
 	vector<Point2f> getFeatures();
 	vector<Point2f> getVectors();
 	void calcMeanStdDev();
+	bool hasGesture();
 
 private:
 	handSide side;
