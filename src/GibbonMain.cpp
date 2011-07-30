@@ -118,6 +118,7 @@ void updateMessage() {
 		//New hand!
 		if(leftHand.at(previousIndex()).hasGesture()) {
 			//go back 4 step to get closer to initial location gesture started at
+			leftHand.at(previousIndex(4)).setGesture(leftHand.at(previousIndex()).getGesture());
 			message.newHand(leftHand.at(previousIndex(4)));
 		} else {
 			message.newHand(leftHand.at(index()));
@@ -141,6 +142,7 @@ void updateMessage() {
 		//New hand!
 		if(rightHand.at(previousIndex()).hasGesture()) {
 			//go back 4 step to get closer to initial location gesture started at
+			rightHand.at(previousIndex(4)).setGesture(rightHand.at(previousIndex()).getGesture());
 			message.newHand(rightHand.at(previousIndex(4)));
 		} else {
 			message.newHand(rightHand.at(index()));
@@ -149,6 +151,7 @@ void updateMessage() {
 		//Update existing hand
 		if(rightHand.at(index()).hasGesture()) {
 			rightHand.at(index()).setPresent(false);
+			message.removeHand(rightHand.at(index()));
 		} else {
 			message.updateHand(rightHand.at(index()));
 		}
