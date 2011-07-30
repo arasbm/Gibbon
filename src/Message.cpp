@@ -57,7 +57,7 @@ void Message::newHand(Hand hand) {
 	if(setting.send_tuio) {
 		//tuioTime = TuioTime::getSessionTime();
 		//handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
-		handList[hand.getHandNumber()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
+		handList[hand.getHandSide()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
 	}
 }
 
@@ -67,7 +67,7 @@ void Message::newHand(Hand hand) {
  */
 void Message::updateHand(Hand hand) {
 	if(setting.send_tuio) {
-		tuioServer->updateTuioObject(handList[hand.getHandNumber()], hand.getX(), hand.getY(), hand.getAngle());
+		tuioServer->updateTuioObject(handList[hand.getHandSide()], hand.getX(), hand.getY(), hand.getAngle());
 	}
 }
 
@@ -76,7 +76,7 @@ void Message::updateHand(Hand hand) {
  */
 void Message::removeHand(Hand hand) {
 	if(setting.send_tuio) {
-		tuioServer->removeTuioObject(handList[hand.getHandNumber()]);
+		tuioServer->removeTuioObject(handList[hand.getHandSide()]);
 	}
 }
 

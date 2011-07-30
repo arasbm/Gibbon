@@ -33,6 +33,7 @@ Hand::Hand(handSide s) {
 	side = s;
 	present = false;
 	handNumber = handCount;
+	handGesture = GESTURE_NONE;
 	handCount++;
 }
 
@@ -123,7 +124,7 @@ gesture Hand::getGesture() {
  *        [unused][unused][HandID][GestureID]
  */
 int Hand::handMessageID() {
-	return (handNumber << 8) & getGesture();
+	return (handNumber << 8) | getGesture();
 }
 
 /**
@@ -251,6 +252,7 @@ void Hand::calcMeanStdDev() {
  */
 void Hand::clear() {
 	setPresent(false);
+	handGesture = GESTURE_NONE;
 	features.clear();
 	vectors.clear();
 	//TODO: Check for anything else I need to do here to prevent error or release memory

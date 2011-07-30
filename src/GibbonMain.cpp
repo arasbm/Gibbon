@@ -126,8 +126,8 @@ void updateMessage() {
 	} else if(leftHand.at(index()).isPresent()) {
 		//Update existing hand
 		if(leftHand.at(index()).hasGesture()) {
-			leftHand.at(index()).setPresent(false);
 			message.removeHand(leftHand.at(index()));
+			leftHand.at(index()).setPresent(false);
 		} else {
 			message.updateHand(leftHand.at(index()));
 		}
@@ -150,8 +150,8 @@ void updateMessage() {
 	} else if(rightHand.at(index()).isPresent()) {
 		//Update existing hand
 		if(rightHand.at(index()).hasGesture()) {
-			rightHand.at(index()).setPresent(false);
 			message.removeHand(rightHand.at(index()));
+			rightHand.at(index()).setPresent(false);
 		} else {
 			message.updateHand(rightHand.at(index()));
 		}
