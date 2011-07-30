@@ -126,6 +126,7 @@ void updateMessage() {
 		//Update existing hand
 		if(leftHand.at(index()).hasGesture()) {
 			leftHand.at(index()).setPresent(false);
+			message.removeHand(leftHand.at(index()));
 		} else {
 			message.updateHand(leftHand.at(index()));
 		}
