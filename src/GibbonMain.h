@@ -28,6 +28,7 @@ void assignFeaturesToHands();
 void drawFeatures(cv::Mat img);
 void drawMeanAndStdDev(cv::Mat img);
 float getDistance(const cv::Point2f a, const cv::Point2f b);
+void rotateImage(cv::Mat* src, cv::Mat* dst, float degrees);
 int numberOfHands();
 int index();
 void updateMessage();

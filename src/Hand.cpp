@@ -136,7 +136,20 @@ int Hand::handMessageID() {
 float Hand::getX() {
 	//return gestureX;
 	//return (setting.imageSize.width - this->getMinCircleCenter().x) / setting.imageSize.width;
-	return (setting.imageSize.width - this->getFeatureMean().x) / setting.imageSize.width;
+	float alpha = 0.5f;
+	static float oldX = -1;
+
+	float x = (setting.imageSize.width - this->getFeatureMean().x) / setting.imageSize.width;
+
+	if(oldX != -1)
+	{
+		alpha = fabs(x - oldX) / setting.imageSize.width * 2500.f;
+		alpha = min(1.0f, alpha);
+		x =  alpha*x + (1-alpha)*oldX;
+	}
+
+	oldX = x;
+	return x;
 }
 
 /**
@@ -148,7 +161,20 @@ float Hand::getX() {
 float Hand::getY() {
 	//return gestureY;
 	//return this->getMinCircleCenter().y / setting.imageSize.height;
-	return this->getFeatureMean().y / setting.imageSize.height;
+	float alpha = 0.5f;
+	static float oldY = -1;
+
+	float y = this->getFeatureMean().y / setting.imageSize.height;
+
+	if(oldY != -1)
+	{
+		alpha = fabs(y - oldY) / setting.imageSize.height * 2500.f;
+		alpha = min(1.0f, alpha);
+		y = alpha*y + (1-alpha)*oldY;
+	}
+
+	oldY = y;
+	return y;
 }
 
 /**

@@ -282,6 +282,10 @@ void start(){
 	while(key != 'q') {
 		if(setting.pgr_cam_index >= 0){
 			currentFrame = pgrCamera.grabImage();
+			Mat rotatedFrame;
+			rotateImage(&currentFrame, &rotatedFrame, 180);
+			currentFrame = rotatedFrame;
+
 			if(setting.do_undistortion) {
 				undistortion.undistortImage(currentFrame);
 			}
@@ -660,6 +664,21 @@ void meanAndStdDevExtract() {
 	if(rightHand.at(index()).isPresent()){
 		rightHand.at(index()).calcMeanStdDev();
 	}
+}
+
+/**
+ * Rotate specified image by specified angle in degrees
+ */
+void rotateImage(Mat* src, Mat* dst, float degrees)
+{
+	   /// Compute a rotation matrix with respect to the center of the image
+	   Point center = Point(src->cols/2, src->rows/2);
+
+	   /// Get the rotation matrix with the specifications above
+	   Mat rot_mat = getRotationMatrix2D(center, degrees, 1.0f);
+
+	   /// Rotate the warped image
+	   warpAffine(*src, *dst, rot_mat, src->size());
 }
 
 /**
