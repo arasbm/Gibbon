@@ -38,118 +38,118 @@ void GestureTracker::checkGestures(vector<Hand>* h) {
  * Check for grab gesture
  */
 bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
-	//need at least 2 hands confirming the gesture
-	int handsToTrack = 2;
+	//need at least 3 hands confirming the gesture
+	int handsToTrack = 3;
 	int min_feature = 5;
 	//	int factor = 5;
 
 	float speedTolerance = 5.0f;
-	float grabVectorTolerance = 0.75f;
-	float releaseVectorTolerance = 0.5f;
-	float grabPercentTolerance = 0.3f;
+	float stdDevScaleFactor = 1.2f; //expected minimum change in size of std dev
+
+	float grabVectorTolerance = 0.8f;
+	//tolerance for difference between feature vector and vector to center of features to count for grab
+	//tolerance should be in range [0 2] 0 being exact match and 2 being anything
+	float grabPercentTolerance = 0.3f; // smaller is easier to detect but cause more false positives
+
+	float releaseVectorTolerance = 0.8f;
 	float releasePercentTolerance = 0.4f;
 
-	if(h->at(index()).isPresent() &&
-			h->at(previousIndex(1)).isPresent() &&
-			h->at(previousIndex(2)).isPresent() &&
-			h->at(previousIndex(3)).isPresent()) {
+	for(int i = 0; i < handsToTrack; i++) {
+		if(!h->at(previousIndex(i)).isPresent()) {
+			return false;
+		}
+		if(h->at(previousIndex(i)).getNumOfFeatures() < min_feature) {
+			return false;
+		}
+	}
 
-		if(h->at(index()).getNumOfFeatures() > min_feature &&
-				(h->at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
-				(h->at(previousIndex(2)).getNumOfFeatures() > min_feature)) {
+	bool grab = true;
+	bool release = true;
 
-//			if(h->at(index()).getFeatureStdDev() + factor < h->at(previousIndex(1)).getFeatureStdDev() &&
-//					(h->at(previousIndex(1)).getFeatureStdDev() + factor < h->at(previousIndex(2)).getFeatureStdDev())) {
-//
-//				if( h->at(index()).getFeatureStdDev()* 2.0f <= h->at(previousIndex(2)).getFeatureStdDev() ) {
-//
-//					verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) + " >>GRAB<<");
-//					h->at(index()).setGesture(GESTURE_GRAB);
-//					return true;
-//				}
-//			}
+	for(int i=0; i<handsToTrack; i++) {
 
-			bool grab = true;
-			bool release = true;
+		Point2f center = h->at(previousIndex(i)).getFeatureMean();
 
-			for(int i=0; i<handsToTrack; i++) {
+		vector<Point2f> features = h->at(previousIndex(i)).getFeatures();
+		vector<Point2f> featVectors = h->at(previousIndex(i)).getVectors();
 
-				Point2f center = h->at(previousIndex(i)).getFeatureMean();
-
-				vector<Point2f> features = h->at(previousIndex(i)).getFeatures();
-				vector<Point2f> featVectors = h->at(previousIndex(i)).getVectors();
-
-				int movingToCenter = 0;
-				int movingFromCenter = 0;
-				int totalFeatures = features.size();
+		int movingToCenter = 0;
+		int movingFromCenter = 0;
+		int totalFeatures = features.size();
 
 //				verbosePrint("FEATURES: " + boost::lexical_cast<string>(features.size()));
 
-				for(int i=0; i<features.size(); i++) {
+		for(int j=0; j<totalFeatures; j++) {
 
-					Point2f toCenter = (center - features[i]);
-					Point2f direction = featVectors[i];
-
-					float magnitude = sqrt(direction.x*direction.x + direction.y*direction.y);
-
-					if( magnitude > speedTolerance) {
-						//normalize
-						direction.x /= magnitude;
-						direction.y /= magnitude;
-						magnitude = sqrt(toCenter.x*toCenter.x + toCenter.y*toCenter.y);
-						toCenter.x /= magnitude;
-						toCenter.y /= magnitude;
-
-						Point2f difference = toCenter - direction;
-						magnitude = sqrt(difference.x*difference.x + difference.y*difference.y);
-
-//						verbosePrint(boost::lexical_cast<string>(toCenter.x) + "," + boost::lexical_cast<string>(toCenter.y));
-//						verbosePrint(boost::lexical_cast<string>(direction.x) + "," + boost::lexical_cast<string>(direction.y));
-
-						if(magnitude < grabVectorTolerance)
-							movingToCenter++;
-
-						difference = toCenter + direction;
-						magnitude = sqrt(difference.x*difference.x + difference.y*difference.y);
-
-						if(magnitude < releaseVectorTolerance)
-							movingFromCenter++;
-
-//						if(magnitude < vectorTolerance)
-//							verbosePrint(boost::lexical_cast<string>(magnitude));
-					}
-				}
-
-//				if(movingToCenter / (float) totalFeatures > 0.15f)
-//					verbosePrint("% = "+boost::lexical_cast<string>(movingToCenter / (float) totalFeatures));
-
-				if(movingToCenter / (float) totalFeatures < grabPercentTolerance)
-					grab = false;
-
-				if(movingFromCenter / (float) totalFeatures < releasePercentTolerance)
-					release = false;
+			//first check if features are not converging, indicating no grab
+			if( h->at(previousIndex(i)).getFeatureStdDev() > h->at(previousIndex(i+1)).getFeatureStdDev() * stdDevScaleFactor ) {
+				grab = false;
+			}
+			if( h->at(previousIndex(i)).getFeatureStdDev() * stdDevScaleFactor < h->at(previousIndex(i+1)).getFeatureStdDev() ) {
+				release = false;
 			}
 
-			if(grab) {
 
-				if( h->at(index()).getFeatureStdDev() <= h->at(previousIndex(2)).getFeatureStdDev() * 2.0f ) {
+			Point2f toCenter = (center - features[j]);
+			Point2f direction = featVectors[j];
 
-					verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) + " >>GRAB<<");
-					h->at(index()).setGesture(GESTURE_GRAB);
-					return true;
-				}
+			float magnitude = sqrt(direction.x*direction.x + direction.y*direction.y);
 
-			} else if(release) {
+			if( magnitude > speedTolerance) {
+				//normalize
+				direction.x /= magnitude;
+				direction.y /= magnitude;
+				magnitude = sqrt(toCenter.x*toCenter.x + toCenter.y*toCenter.y);
+				toCenter.x /= magnitude;
+				toCenter.y /= magnitude;
 
-				if( h->at(index()).getFeatureStdDev() * 2.0f >= h->at(previousIndex(2)).getFeatureStdDev() ) {
+				Point2f difference = toCenter - direction;
+				magnitude = sqrt(difference.x*difference.x + difference.y*difference.y);
 
-					verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) + " >>RELEASE<<");
-					h->at(index()).setGesture(GESTURE_RELEASE);
-					return true;
-				}
+//				verbosePrint(boost::lexical_cast<string>(toCenter.x) + "," + boost::lexical_cast<string>(toCenter.y));
+//				verbosePrint(boost::lexical_cast<string>(direction.x) + "," + boost::lexical_cast<string>(direction.y));
+
+				if(magnitude < grabVectorTolerance)
+					movingToCenter++;
+
+				difference = toCenter + direction;
+				magnitude = sqrt(difference.x*difference.x + difference.y*difference.y);
+
+				if(magnitude < releaseVectorTolerance)
+					movingFromCenter++;
+
+//				if(magnitude < vectorTolerance)
+//					verbosePrint(boost::lexical_cast<string>(magnitude));
 			}
 		}
+
+//		if(movingToCenter / (float) totalFeatures > 0.15f)
+//		verbosePrint("% = "+boost::lexical_cast<string>(movingToCenter / (float) totalFeatures));
+
+		if(movingToCenter / (float) totalFeatures < grabPercentTolerance)
+			grab = false;
+
+		if(movingFromCenter / (float) totalFeatures < releasePercentTolerance)
+			release = false;
+
+		if(!release && !grab)
+			return false;
 	}
+
+	if(grab) {
+		verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) + " >>GRAB<<");
+		//verbosePrint("grab percent: " + boost::lexical_cast<string>(movingToCenter / (float) totalFeatures));
+		h->at(index()).setGesture(GESTURE_GRAB);
+		return true;
+	}
+
+	if(release) {
+		verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) + " >>RELEASE<<");
+		//verbosePrint("release percent: " + boost::lexical_cast<string>(movingFromCenter / (float) totalFeatures));
+		h->at(index()).setGesture(GESTURE_RELEASE);
+		return true;
+	}
+
 	return false;
 }
 

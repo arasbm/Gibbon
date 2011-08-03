@@ -55,16 +55,17 @@ vector<Hand> handTwo(hand_window_size, Hand(RIGHT_HAND)); //circular: see index(
 vector<Point2f> previousCorners;
 vector<Point2f> currentCorners; //Centre point of feature or corner rectangles
 vector<uchar> flowStatus; //set to 1 if the flow for the corresponding features has been found, 0 otherwise
+vector<float> flowCount; //number of times the flow of this feature has been detected
 vector<float> featureDepth;
 //vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
 vector<float> flowError;
 TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
 double derivLambda = 0.5; //proportion for impact of "image intensity" as opposed to "derivatives"
 int maxCorners = 32;
-double qualityLevel = 0.05;
-double minDistance = 5;
-int blockSize = 16;
-bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
+double qualityLevel = 0.01;
+double minDistance = 0;
+int blockSize = 24;
+bool useHarrisDetector = true; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
 Undistortion undistortion;
@@ -235,6 +236,9 @@ void findGoodFeatures(Mat frame1, Mat frame2) {
 	goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, frame1, blockSize, useHarrisDetector);
 	//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
 	calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), 1, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
+//	for(int i = 0; i < flowError.size(); i++) {
+//		cout << "err " << i << " : " << flowError[i] << endl;
+//	}
 }
 
 /**
@@ -274,6 +278,7 @@ void start(){
 	//Mat watershed_markers = cvCreateImage( setting.imageSize, IPL_DEPTH_32S, 1 );
 	//Mat watershed_image;
 
+	flowCount = vector<float>(maxCorners);
 	char key = 'a';
 	timeval first_time, second_time; //for fps calculation
 	std::stringstream fps_str;
@@ -759,18 +764,23 @@ void drawMeanAndStdDev(Mat img) {
 void assignFeaturesToHands() {
 	for(int i = 0; i < maxCorners; i++) {
 		if(flowStatus[i] == 1) {
-			if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
-				//point is inside contour of the left hand
-				Point2f vector = currentCorners[i] - previousCorners[i];
-				handOne.at(index()).addFeatureAndVector(currentCorners[i], vector);
-			} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
-				Point2f vector = currentCorners[i] - previousCorners[i];
-				handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector);
-			} else {
-				//this is noise or some other object
-				//leftRightStatus.push_back(0); //Neither hand
-				//Don't worry about it!
+			flowCount[i] += 1;
+			if(flowCount[i] > 10) {
+				if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
+					//point is inside contour of the left hand
+					Point2f vector = currentCorners[i] - previousCorners[i];
+					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector);
+				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
+					Point2f vector = currentCorners[i] - previousCorners[i];
+					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector);
+				} else {
+					//this is noise or some other object
+					//leftRightStatus.push_back(0); //Neither hand
+					//Don't worry about it!
+				}
 			}
+		} else {
+			flowCount[i] = 0;
 		}
 	}
 }
