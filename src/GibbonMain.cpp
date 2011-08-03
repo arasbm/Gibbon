@@ -65,7 +65,7 @@ int maxCorners = 32;
 double qualityLevel = 0.01;
 double minDistance = 0;
 int blockSize = 24;
-bool useHarrisDetector = true; //its either harris or cornerMinEigenVal
+bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
 Undistortion undistortion;
@@ -115,12 +115,13 @@ void init() {
  * "message"
  */
 void updateMessage() {
+	int stepsBack = 3;
 	if(handOne.at(index()).isPresent() && (!handOne.at(previousIndex()).isPresent())) {
 		//New hand!
 		if(handOne.at(previousIndex()).hasGesture()) {
 			//go back 4 step to get closer to initial location gesture started at
-			handOne.at(previousIndex(4)).setGesture(handOne.at(previousIndex()).getGesture());
-			message.newHand(handOne.at(previousIndex(4)));
+			handOne.at(previousIndex(stepsBack)).setGesture(handOne.at(previousIndex()).getGesture());
+			message.newHand(handOne.at(previousIndex(stepsBack)));
 		} else {
 			message.newHand(handOne.at(index()));
 		}
@@ -143,8 +144,8 @@ void updateMessage() {
 		//New hand!
 		if(handTwo.at(previousIndex()).hasGesture()) {
 			//go back 4 step to get closer to initial location gesture started at
-			handTwo.at(previousIndex(4)).setGesture(handTwo.at(previousIndex()).getGesture());
-			message.newHand(handTwo.at(previousIndex(4)));
+			handTwo.at(previousIndex(stepsBack)).setGesture(handTwo.at(previousIndex()).getGesture());
+			message.newHand(handTwo.at(previousIndex(stepsBack)));
 		} else {
 			message.newHand(handTwo.at(index()));
 		}
@@ -758,14 +759,16 @@ void drawMeanAndStdDev(Mat img) {
 }
 
 /**
- * assign features and their corresponding vector to hand(s) if the feature
+ * assign features and their corresponding vector to hand(s) if th.0
+ * 03
+ * e feature
  * has been successfully tracked and a hand contain it
  */
 void assignFeaturesToHands() {
 	for(int i = 0; i < maxCorners; i++) {
 		if(flowStatus[i] == 1) {
 			flowCount[i] += 1;
-			if(flowCount[i] > 10) {
+			if(flowCount[i] > 2) {
 				if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
 					//point is inside contour of the left hand
 					Point2f vector = currentCorners[i] - previousCorners[i];
