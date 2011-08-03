@@ -27,28 +27,27 @@
 
 void GestureTracker::checkGestures(vector<Hand>* h) {
 
-	if(checkGrab(h))
-			return;
-
-	if(checkRelease(h))
-			return;
+	if(checkGrabRelease(h))
+		return;
 
 	if(checkRotate(h))
-			return;
+		return;
 }
 
 /**
  * Check for grab gesture
  */
-bool GestureTracker::checkGrab(vector<Hand>* h) {
-	//need at least 3 hands confirming the gesture
+bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
+	//need at least 2 hands confirming the gesture
 	int handsToTrack = 2;
-//	int factor = 5;
 	int min_feature = 5;
+	//	int factor = 5;
 
-	float vectorToleranceRatio = 0.5f;
 	float speedTolerance = 5.0f;
-	float percentTolerance = 0.4f;
+	float grabVectorTolerance = 0.75f;
+	float releaseVectorTolerance = 0.5f;
+	float grabPercentTolerance = 0.3f;
+	float releasePercentTolerance = 0.4f;
 
 	if(h->at(index()).isPresent() &&
 			h->at(previousIndex(1)).isPresent() &&
@@ -91,18 +90,15 @@ bool GestureTracker::checkGrab(vector<Hand>* h) {
 					Point2f toCenter = (center - features[i]);
 					Point2f direction = featVectors[i];
 
-					float dirMagnitude = sqrt(direction.x*direction.x + direction.y*direction.y);
+					float magnitude = sqrt(direction.x*direction.x + direction.y*direction.y);
 
-					if( dirMagnitude > speedTolerance) {
-
+					if( magnitude > speedTolerance) {
 						//normalize
-						//direction.x /= magnitude;
-						//direction.y /= magnitude;
-						float magnitude = sqrt(toCenter.x*toCenter.x + toCenter.y*toCenter.y);
+						direction.x /= magnitude;
+						direction.y /= magnitude;
+						magnitude = sqrt(toCenter.x*toCenter.x + toCenter.y*toCenter.y);
 						toCenter.x /= magnitude;
 						toCenter.y /= magnitude;
-						toCenter.x *= dirMagnitude;
-						toCenter.y *= dirMagnitude;
 
 						Point2f difference = toCenter - direction;
 						magnitude = sqrt(difference.x*difference.x + difference.y*difference.y);
@@ -110,15 +106,13 @@ bool GestureTracker::checkGrab(vector<Hand>* h) {
 //						verbosePrint(boost::lexical_cast<string>(toCenter.x) + "," + boost::lexical_cast<string>(toCenter.y));
 //						verbosePrint(boost::lexical_cast<string>(direction.x) + "," + boost::lexical_cast<string>(direction.y));
 
-						float vectorTolerance = dirMagnitude * vectorToleranceRatio;
-
-						if(magnitude < vectorTolerance)
+						if(magnitude < grabVectorTolerance)
 							movingToCenter++;
 
 						difference = toCenter + direction;
 						magnitude = sqrt(difference.x*difference.x + difference.y*difference.y);
 
-						if(magnitude < vectorTolerance)
+						if(magnitude < releaseVectorTolerance)
 							movingFromCenter++;
 
 //						if(magnitude < vectorTolerance)
@@ -129,10 +123,10 @@ bool GestureTracker::checkGrab(vector<Hand>* h) {
 //				if(movingToCenter / (float) totalFeatures > 0.15f)
 //					verbosePrint("% = "+boost::lexical_cast<string>(movingToCenter / (float) totalFeatures));
 
-				if(movingToCenter / (float) totalFeatures < percentTolerance)
+				if(movingToCenter / (float) totalFeatures < grabPercentTolerance)
 					grab = false;
 
-				if(movingFromCenter / (float) totalFeatures < percentTolerance)
+				if(movingFromCenter / (float) totalFeatures < releasePercentTolerance)
 					release = false;
 			}
 
@@ -160,20 +154,13 @@ bool GestureTracker::checkGrab(vector<Hand>* h) {
 }
 
 /**
- * Check for release gesture
- */
-bool GestureTracker::checkRelease(vector<Hand>* h) {
-	return false;
-}
-
-/**
  * Check rotate gesture
  */
 bool GestureTracker::checkRotate(vector<Hand>* h) {
 	//need at least 5 hands confirming the gesture
-	int min_feature = 10;
-	static float rot_tolerance = 30;
-	static float area_tolerance = 1000;
+//	int min_feature = 10;
+//	static float rot_tolerance = 30;
+//	static float area_tolerance = 1000;
 
 //	if(h->at(index()).isPresent() && h->at(previousIndex(1)).isPresent() && h->at(previousIndex(2)).isPresent() ) {
 //		if(h->at(index()).getNumOfFeatures() > min_feature &&

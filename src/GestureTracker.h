@@ -31,8 +31,7 @@ public:
 	static void checkGestures(vector<Hand>* h);
 
 private:
-	static bool checkGrab(vector<Hand>* h);
-	static bool checkRelease(vector<Hand>* h);
+	static bool checkGrabRelease(vector<Hand>* h);
 	static bool checkRotate(vector<Hand>* h);
 };
 
