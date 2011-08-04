@@ -115,7 +115,7 @@ void init() {
  * "message"
  */
 void updateMessage() {
-	int stepsBack = 3;
+	int stepsBack = 1;
 	if(handOne.at(index()).isPresent() && (!handOne.at(previousIndex()).isPresent())) {
 		//New hand!
 		if(handOne.at(previousIndex()).hasGesture()) {
