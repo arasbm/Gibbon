@@ -288,9 +288,9 @@ void start(){
 	while(key != 'q') {
 		if(setting.pgr_cam_index >= 0){
 			currentFrame = pgrCamera.grabImage();
-			Mat rotatedFrame;
-			rotateImage(&currentFrame, &rotatedFrame, 180);
-			currentFrame = rotatedFrame;
+//			Mat rotatedFrame;
+//			rotateImage(&currentFrame, &rotatedFrame, 180);
+//			currentFrame = rotatedFrame;
 
 			if(setting.do_undistortion) {
 				undistortion.undistortImage(currentFrame);
@@ -469,11 +469,17 @@ void findHands(vector<vector<cv::Point> > contours) {
 	Point2f tmpCenter, max1Center, max2Center;
 	float tmpRadius = 0, max1Radius = 0, max2Radius = 0;
 	int max1ContourIndex = 0, max2ContourIndex = 0;
-	int contour_size_threshold = 40;
+	int contour_side_threshold = 50;
 
 	for (uint i = 0; i < contours.size(); i++) {
-		if(contours[i].size() > contour_size_threshold) {
+
+		Size2f tmpSize = minAreaRect(Mat(contours[i])).size;
+		float tmpSide = min(tmpSize.height, tmpSize.width);
+
+		if(tmpSide > contour_side_threshold) {
+
 			minEnclosingCircle(Mat(contours[i]), tmpCenter, tmpRadius);
+
 			if (tmpRadius > max1Radius) {
 				if (max1Radius > max2Radius) {
 					max2Radius = max1Radius;
