@@ -42,6 +42,9 @@ const cv::Scalar BLUE = CV_RGB(51, 153, 255); // use for right hand
 const cv::Scalar OLIVE = CV_RGB(184, 184, 0);
 const cv::Scalar RANDOM_COLOR = CV_RGB( rand()&255, rand()&255, rand()&255 ); //a random color
 
+const cv::Scalar COLORS [] = {YELLOW,ORANGE,RED,PINK,GREEN,BLUE,OLIVE};
+const int NUM_COLORS = 7;
+
 
 class Setting {
 
@@ -77,8 +80,6 @@ public:
 	bool do_undistortion;
 
 	/*** modes ***/
-	bool left_grab_mode;
-	bool right_grab_mode;
 	bool capture_snapshot; //capture and save an snapshot of all the important images
 
 	/*** pgr camera serrings ***/
@@ -110,11 +111,6 @@ private:
 		tuio_host = "localhost";
 		do_undistortion = true;
 		undistortion_factor = 0.1;
-
-
-		/*** modes ***/
-		left_grab_mode = false;
-		right_grab_mode = false;
 
 		/*** pgr camera serrings ***/
 		pgr_cam_index = 0;

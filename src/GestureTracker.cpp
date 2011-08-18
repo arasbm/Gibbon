@@ -25,7 +25,7 @@
 #include "GibbonMain.h"
 #include "Log.h"
 
-void GestureTracker::checkGestures(vector<Hand>* h) {
+void GestureTracker::checkGestures(vector<Hand*> h) {
 
 	if(checkGrabRelease(h))
 		return;
@@ -37,7 +37,7 @@ void GestureTracker::checkGestures(vector<Hand>* h) {
 /**
  * Check for grab gesture
  */
-bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
+bool GestureTracker::checkGrabRelease(vector<Hand*> h) {
 	//need at least 3 hands confirming the gesture
 	int handsToTrack = 3;
 	int min_feature = 5;
@@ -55,10 +55,10 @@ bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
 	float releasePercentTolerance = 0.5f;
 
 	for(int i = 0; i < handsToTrack; i++) {
-		if(!h->at(previousIndex(i)).isPresent()) {
+		if(!h.at(previousIndex(i))->isPresent()) {
 			return false;
 		}
-		if(h->at(previousIndex(i)).getNumOfFeatures() < min_feature) {
+		if(h.at(previousIndex(i))->getNumOfFeatures() < min_feature) {
 			return false;
 		}
 	}
@@ -72,10 +72,10 @@ bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
 
 	for(int i=0; i<handsToTrack; i++) {
 
-		Point2f center = h->at(previousIndex(i)).getFeatureMean();
+		Point2f center = h.at(previousIndex(i))->getFeatureMean();
 
-		vector<Point2f> features = h->at(previousIndex(i)).getFeatures();
-		vector<Point2f> featVectors = h->at(previousIndex(i)).getVectors();
+		vector<Point2f> features = h.at(previousIndex(i))->getFeatures();
+		vector<Point2f> featVectors = h.at(previousIndex(i))->getVectors();
 
 		totalFeatures += features.size();
 
@@ -84,10 +84,10 @@ bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
 		for(int j=0; j<totalFeatures; j++) {
 
 			//first check if features are not converging, indicating no grab
-			if( h->at(previousIndex(i)).getFeatureStdDev() > h->at(previousIndex(i+1)).getFeatureStdDev() * stdDevScaleFactor ) {
+			if( h.at(previousIndex(i))->getFeatureStdDev() > h.at(previousIndex(i+1))->getFeatureStdDev() * stdDevScaleFactor ) {
 				grab = false;
 			}
-			if( h->at(previousIndex(i)).getFeatureStdDev() * stdDevScaleFactor < h->at(previousIndex(i+1)).getFeatureStdDev() ) {
+			if( h.at(previousIndex(i))->getFeatureStdDev() * stdDevScaleFactor < h.at(previousIndex(i+1))->getFeatureStdDev() ) {
 				release = false;
 			}
 
@@ -141,16 +141,16 @@ bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
 		return false;
 
 	if(grab) {
-		verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) + " >>GRAB<<");
+		verbosePrint("hand#: " + boost::lexical_cast<string>(h.at(index())->getHandNumber()) + " >>GRAB<<");
 		//verbosePrint("grab percent: " + boost::lexical_cast<string>(movingToCenter / (float) totalFeatures));
-		h->at(index()).setGesture(GESTURE_GRAB);
+		h.at(index())->setGesture(GESTURE_GRAB);
 		return true;
 	}
 
 	if(release) {
-		verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) + " >>RELEASE<<");
+		verbosePrint("hand#: " + boost::lexical_cast<string>(h.at(index())->getHandNumber()) + " >>RELEASE<<");
 		//verbosePrint("release percent: " + boost::lexical_cast<string>(movingFromCenter / (float) totalFeatures));
-		h->at(index()).setGesture(GESTURE_RELEASE);
+		h.at(index())->setGesture(GESTURE_RELEASE);
 		return true;
 	}
 
@@ -160,30 +160,30 @@ bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
 /**
  * Check rotate gesture
  */
-bool GestureTracker::checkRotate(vector<Hand>* h) {
+bool GestureTracker::checkRotate(vector<Hand*> h) {
 	//need at least 5 hands confirming the gesture
 //	int min_feature = 10;
 //	static float rot_tolerance = 30;
 //	static float area_tolerance = 1000;
 
-//	if(h->at(index()).isPresent() && h->at(previousIndex(1)).isPresent() && h->at(previousIndex(2)).isPresent() ) {
-//		if(h->at(index()).getNumOfFeatures() > min_feature &&
-//				(h->at(previousIndex(1)).getNumOfFeatures() > min_feature) &&
-//				(h->at(previousIndex(2)).getNumOfFeatures() > min_feature) &&
-//				(h->at(previousIndex(3)).getNumOfFeatures() > min_feature) &&
-//				(h->at(previousIndex(4)).getNumOfFeatures() > min_feature)) {
+//	if(h.at(index())->isPresent() && h.at(previousIndex(1))->isPresent() && h.at(previousIndex(2))->isPresent() ) {
+//		if(h.at(index())->getNumOfFeatures() > min_feature &&
+//				(h.at(previousIndex(1))->getNumOfFeatures() > min_feature) &&
+//				(h.at(previousIndex(2))->getNumOfFeatures() > min_feature) &&
+//				(h.at(previousIndex(3))->getNumOfFeatures() > min_feature) &&
+//				(h.at(previousIndex(4))->getNumOfFeatures() > min_feature)) {
 //
-//			float angle0 = h->at(index()).getAngle();
-//			float angle1 = h->at(previousIndex(1)).getAngle();
-//			float angle2 = h->at(previousIndex(2)).getAngle();
-//			float angle3 = h->at(previousIndex(3)).getAngle();
-//			float angle4 = h->at(previousIndex(4)).getAngle();
+//			float angle0 = h.at(index())->getAngle();
+//			float angle1 = h.at(previousIndex(1))->getAngle();
+//			float angle2 = h.at(previousIndex(2))->getAngle();
+//			float angle3 = h.at(previousIndex(3))->getAngle();
+//			float angle4 = h.at(previousIndex(4))->getAngle();
 //
-//			float area0 = h->at(index()).getMinRect().size.area();
-//			float area1 = h->at(previousIndex(1)).getMinRect().size.area();
-//			float area2 = h->at(previousIndex(2)).getMinRect().size.area();
-//			float area3 = h->at(previousIndex(3)).getMinRect().size.area();
-//			float area4 = h->at(previousIndex(4)).getMinRect().size.area();
+//			float area0 = h.at(index()).getMinRect().size->area();
+//			float area1 = h.at(previousIndex(1)).getMinRect().size->area();
+//			float area2 = h.at(previousIndex(2)).getMinRect().size->area();
+//			float area3 = h.at(previousIndex(3)).getMinRect().size->area();
+//			float area4 = h.at(previousIndex(4)).getMinRect().size->area();
 //
 ////			verbosePrint(boost::lexical_cast<std::string>(fabs(angle0 - angle4)));
 ////
@@ -201,14 +201,14 @@ bool GestureTracker::checkRotate(vector<Hand>* h) {
 //				if(angle0 > angle1 && angle1 > angle2 && angle2 > angle3 && angle3 > angle4 &&
 //						fabs(angle0 - angle4) > rot_tolerance) {
 //
-//					verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) +
+//					verbosePrint("hand#: " + boost::lexical_cast<string>(h.at(index())->getHandNumber()) +
 //												" >>ROTATE<< clockwise");
 //					return true;
 //
 //				} else if(angle0 < angle1 && angle1 < angle2 && angle2 < angle3 && angle3 < angle4 &&
 //						fabs(angle0 - angle4) > rot_tolerance) {
 //
-//					verbosePrint("hand#: " + boost::lexical_cast<string>(h->at(index()).getHandNumber()) +
+//					verbosePrint("hand#: " + boost::lexical_cast<string>(h.at(index())->getHandNumber()) +
 //							" >>ROTATE<< counter-clockwise");
 //					return true;
 //				}

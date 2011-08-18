@@ -34,9 +34,9 @@ class Message {
 public:
 	Message();
 	void init();
-	void newHand(Hand hand);
-	void updateHand(Hand hand);
-	void removeHand(Hand hand);
+	void newHand(Hand* hand, int handID);
+	void updateHand(Hand* hand, int handID);
+	void removeHand(Hand* hand, int handID);
 	void commit();
 	~Message();
 

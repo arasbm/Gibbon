@@ -28,20 +28,12 @@ using namespace std;
 
 Setting setting = Setting::Instance();
 
-Hand::Hand(handSide s) {
+Hand::Hand() {
 	static int handCount;
-	side = s;
 	present = false;
 	handNumber = handCount;
 	handGesture = GESTURE_NONE;
 	handCount++;
-}
-
-/**
- * Return LEFT_HAND or RIGHT_HAND
- */
-handSide Hand::getHandSide() {
-	return side;
 }
 
 /**

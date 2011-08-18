@@ -53,30 +53,30 @@ void Message::init() {
  * Every time (frame) a NEW hand is detected this method should be called to create a new message
  * for this hand and any gestures associated with it
  */
-void Message::newHand(Hand hand) {
+void Message::newHand(Hand* hand, int handID) {
 	if(setting.send_tuio) {
 		//tuioTime = TuioTime::getSessionTime();
-		//handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
-		handList[hand.getHandSide()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
+		//handList[hand->getHandNumber()] = TuioObject(tuioTime, 0, hand->handMessageID(), hand->getX(), hand->getY(), hand->getAngle());
+		handList[handID] = tuioServer->addTuioObject(hand->handMessageID(), hand->getX(), hand->getY(), hand->getAngle());
 	}
 }
 
 /**
- * for updating an existing hand. New gestures will be retrived from the hand and sent over using
+ * for updating an existing hand-> New gestures will be retrived from the hand and sent over using
  * appropriate protocols such as TUIO
  */
-void Message::updateHand(Hand hand) {
+void Message::updateHand(Hand* hand, int handID) {
 	if(setting.send_tuio) {
-		tuioServer->updateTuioObject(handList[hand.getHandSide()], hand.getX(), hand.getY(), hand.getAngle());
+		tuioServer->updateTuioObject(handList[handID], hand->getX(), hand->getY(), hand->getAngle());
 	}
 }
 
 /**
  * send the message that this hand is not present
  */
-void Message::removeHand(Hand hand) {
+void Message::removeHand(Hand* hand, int handID) {
 	if(setting.send_tuio) {
-		tuioServer->removeTuioObject(handList[hand.getHandSide()]);
+		tuioServer->removeTuioObject(handList[handID]);
 	}
 }
 

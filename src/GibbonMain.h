@@ -29,10 +29,17 @@ void drawFeatures(cv::Mat img);
 void drawMeanAndStdDev(cv::Mat img);
 float getDistance(const cv::Point2f a, const cv::Point2f b);
 void rotateImage(cv::Mat* src, cv::Mat* dst, float degrees);
-int numberOfHands();
 int index();
 void updateMessage();
 int previousIndex();
 int previousIndex(int i);
+
+struct weighted_edge {
+	int contourIndex;
+	int handIndex;
+	float weight;
+};
+
+bool compareWeightedEdges(weighted_edge e1, weighted_edge e2);
 
 #endif /* GIBBON_H_ */

@@ -47,9 +47,9 @@ VideoWriter sourceWriter;
 VideoWriter resultWriter;
 
 /** Hand tracking structures [temporal tracking window] **/
-const uint hand_window_size = 5; //Number of frames to keep track of hand. Minimum of two is needed
-vector<Hand> handOne(hand_window_size, Hand(LEFT_HAND)); //circular: see index() function
-vector<Hand> handTwo(hand_window_size, Hand(RIGHT_HAND)); //circular: see index() function
+const int max_hands = 8;
+const int hand_window_size = 5; //Number of frames to keep track of hand. Minimum of two is needed
+map <int, vector<Hand*> > hands = map <int, vector<Hand*> >();
 
 /** goodFeaturesToTrack structure and settings **/
 vector<Point2f> previousCorners;
@@ -116,53 +116,92 @@ void init() {
  */
 void updateMessage() {
 	int stepsBack = 1;
-	if(handOne.at(index()).isPresent() && (!handOne.at(previousIndex()).isPresent())) {
-		//New hand!
-		if(handOne.at(previousIndex()).hasGesture()) {
-			//go back 4 step to get closer to initial location gesture started at
-			handOne.at(previousIndex(stepsBack)).setGesture(handOne.at(previousIndex()).getGesture());
-			message.newHand(handOne.at(previousIndex(stepsBack)));
+
+	for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+
+		int i = it->first;
+
+		if(previousIndex() < 0) {
+			//First video frame and New hand!
+			message.newHand(hands[i][index()], i);
+
+		} else if(hands[i][index()]->isPresent() && !hands[i][previousIndex()]->isPresent()) {
+			//New hand!
+			if(hands[i][previousIndex()]->hasGesture()) {
+				//go back n steps to get closer to initial location gesture started at
+				hands[i][previousIndex(stepsBack)]->setGesture( hands[i][previousIndex()]->getGesture() );
+				message.newHand(hands[i][previousIndex(stepsBack)], i);
+
+			} else {
+				message.newHand(hands[i][previousIndex(index())], i);
+			}
+
+		} else if(hands[i][index()]->isPresent()) {
+			//Update existing hand
+			if(hands[i][index()]->hasGesture()) {
+				message.removeHand(hands[i][index()], i);
+				hands[i][index()]->setPresent(false);
+			} else {
+				message.updateHand(hands[i][index()], i);
+			}
+
+		} else if(!hands[i][index()]->isPresent() && hands[i][previousIndex()]->isPresent()) {
+			//ask for remove
+			message.removeHand(hands[i][index()], i);
+
 		} else {
-			message.newHand(handOne.at(index()));
+			//Peace and quiet here. Nothing to do.
 		}
-	} else if(handOne.at(index()).isPresent()) {
-		//Update existing hand
-		if(handOne.at(index()).hasGesture()) {
-			message.removeHand(handOne.at(index()));
-			handOne.at(index()).setPresent(false);
-		} else {
-			message.updateHand(handOne.at(index()));
-		}
-	} else if((!handOne.at(index()).isPresent()) && handOne.at(previousIndex()).isPresent()) {
-		//ask for remove
-		message.removeHand(handOne.at(index()));
-	} else {
-		//Peace and quiet here. Nothing to do.
 	}
 
-	if(handTwo.at(index()).isPresent() && (!handTwo.at(previousIndex()).isPresent())) {
-		//New hand!
-		if(handTwo.at(previousIndex()).hasGesture()) {
-			//go back 4 step to get closer to initial location gesture started at
-			handTwo.at(previousIndex(stepsBack)).setGesture(handTwo.at(previousIndex()).getGesture());
-			message.newHand(handTwo.at(previousIndex(stepsBack)));
-		} else {
-			message.newHand(handTwo.at(index()));
-		}
-	} else if(handTwo.at(index()).isPresent()) {
-		//Update existing hand
-		if(handTwo.at(index()).hasGesture()) {
-			message.removeHand(handTwo.at(index()));
-			handTwo.at(index()).setPresent(false);
-		} else {
-			message.updateHand(handTwo.at(index()));
-		}
-	} else if((!handTwo.at(index()).isPresent()) && handTwo.at(previousIndex()).isPresent()){
-		//no hand, so ask for remove
-		message.removeHand(handTwo.at(index()));
-	} else {
-		//nothing to do.
-	}
+
+//	if(handOne.at(index()).isPresent() && (!handOne.at(previousIndex()).isPresent())) {
+//		//New hand!
+//		if(handOne.at(previousIndex()).hasGesture()) {
+//			//go back 4 step to get closer to initial location gesture started at
+//			handOne.at(previousIndex(stepsBack)).setGesture(handOne.at(previousIndex()).getGesture());
+//			message.newHand(handOne.at(previousIndex(stepsBack)));
+//		} else {
+//			message.newHand(handOne.at(index()));
+//		}
+//	} else if(handOne.at(index()).isPresent()) {
+//		//Update existing hand
+//		if(handOne.at(index()).hasGesture()) {
+//			message.removeHand(handOne.at(index()));
+//			handOne.at(index()).setPresent(false);
+//		} else {
+//			message.updateHand(handOne.at(index()));
+//		}
+//	} else if((!handOne.at(index()).isPresent()) && handOne.at(previousIndex()).isPresent()) {
+//		//ask for remove
+//		message.removeHand(handOne.at(index()));
+//	} else {
+//		//Peace and quiet here. Nothing to do.
+//	}
+//
+//	if(handTwo.at(index()).isPresent() && (!handTwo.at(previousIndex()).isPresent())) {
+//		//New hand!
+//		if(handTwo.at(previousIndex()).hasGesture()) {
+//			//go back 4 step to get closer to initial location gesture started at
+//			handTwo.at(previousIndex(stepsBack)).setGesture(handTwo.at(previousIndex()).getGesture());
+//			message.newHand(handTwo.at(previousIndex(stepsBack)));
+//		} else {
+//			message.newHand(handTwo.at(index()));
+//		}
+//	} else if(handTwo.at(index()).isPresent()) {
+//		//Update existing hand
+//		if(handTwo.at(index()).hasGesture()) {
+//			message.removeHand(handTwo.at(index()));
+//			handTwo.at(index()).setPresent(false);
+//		} else {
+//			message.updateHand(handTwo.at(index()));
+//		}
+//	} else if((!handTwo.at(index()).isPresent()) && handTwo.at(previousIndex()).isPresent()){
+//		//no hand, so ask for remove
+//		message.removeHand(handTwo.at(index()));
+//	} else {
+//		//nothing to do.
+//	}
 }
 
 /**
@@ -170,34 +209,24 @@ void updateMessage() {
  * during the temporal window that they are tracked
  */
 void drawHandTrace(Mat img) {
-	//left hand
-	if(handOne.at(index()).isPresent()) {
-		ellipse(img, handOne[index()].getMinRect(), ORANGE, 2, 8);
-		for(uint i = 0; i+1 < hand_window_size; i++) {
-			int current = previousIndex(i);
-			int previous = previousIndex(i + 1);
-			if(handOne.at(current).isPresent() && handOne.at(previous).isPresent()) {
-				if(setting.left_grab_mode) {
-					line(img, handOne.at(previous).getMinCircleCenter(), handOne.at(current).getMinCircleCenter(), ORANGE, 5, 4, 0);
-				} else {
-					line(img, handOne.at(previous).getMinCircleCenter(), handOne.at(current).getMinCircleCenter(), ORANGE, 2, 4, 0);
-				}
-			}
-		}
-	}
 
-	//right hands
-	if(handTwo.at(index()).isPresent()) {
-		//polylines(img, handTwo[index()].getMinRect()., 4, 1, true, BLUE, 2, 8, 1);
-		ellipse(img, handTwo[index()].getMinRect(), BLUE, 2, 8);
-		for(uint i = 0; i+1 < hand_window_size; i++) {
-			int current = previousIndex(i);
-			int previous = previousIndex(i + 1);
-			if(handTwo.at(current).isPresent() && handTwo.at(previous).isPresent()) {
-				if(setting.left_grab_mode) {
-					line(img, handTwo.at(previous).getMinCircleCenter(), handTwo.at(current).getMinCircleCenter(), BLUE, 5, 4, 0);
-				} else {
-					line(img, handTwo.at(previous).getMinCircleCenter(), handTwo.at(current).getMinCircleCenter(), BLUE, 2, 4, 0);
+	for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+
+		int i = it->first;
+
+		if(hands[i][index()]->isPresent()) {
+
+			ellipse(img, hands[i][index()]->getMinRect(), COLORS[i], 2, 8);
+
+			for(int j = 0; j+1 < hand_window_size; j++) {
+
+				int current = previousIndex(j);
+				int previous = previousIndex(j + 1);
+
+				if(current >= 0 && previous >= 0) {
+					if(hands[i][current]->isPresent() && hands[i][previous]->isPresent()) {
+						line(img, hands[i][previous]->getMinCircleCenter(), hands[i][current]->getMinCircleCenter(), COLORS[i], 2, 4, 0);
+					}
 				}
 			}
 		}
@@ -288,9 +317,9 @@ void start(){
 	while(key != 'q') {
 		if(setting.pgr_cam_index >= 0){
 			currentFrame = pgrCamera.grabImage();
-			Mat rotatedFrame;
-			rotateImage(&currentFrame, &rotatedFrame, 180);
-			currentFrame = rotatedFrame;
+//			Mat rotatedFrame;
+//			rotateImage(&currentFrame, &rotatedFrame, 180);
+//			currentFrame = rotatedFrame;
 
 			if(setting.do_undistortion) {
 				undistortion.undistortImage(currentFrame);
@@ -358,6 +387,7 @@ void start(){
 		//findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
 		//findContours(binaryImg, contours, hiearchy,  RETR_TREE, CHAIN_APPROX_SIMPLE);
 		//findContours(binaryImg, contours, hiearchy,  RETR_EXTERNAL|RETR_CCOMP, CHAIN_APPROX_NONE);
+		contours.clear();
 		findContours( binaryImg, contours, RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
 
 		//Canny(previousFrame, previousFrame, 0, 30, 3);
@@ -383,7 +413,7 @@ void start(){
 
 		findHands(contours);
 
-		if(numberOfHands() > 0) {
+		if(hands.size() > 0) {
 			findGoodFeatures(previousFrame, currentFrame);
 			drawHandTrace(trackingResults);
 			assignFeaturesToHands();
@@ -393,8 +423,16 @@ void start(){
 			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
 			drawMeanAndStdDev(trackingResults);
-			GestureTracker::checkGestures(&handOne);
-			GestureTracker::checkGestures(&handTwo);
+
+			for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+
+				int i = it->first;
+
+				if(hands[i][index()]->isPresent()) {
+					GestureTracker::checkGestures(hands[i]);
+				}
+			}
+
 		} else {
 			//TODO: is any cleanup necessary here?
 		}
@@ -459,161 +497,271 @@ void start(){
  */
 void findHands(vector<vector<cv::Point> > contours) {
 
-	bool handOnePresent = handOne.at(previousIndex()).isPresent() && handOne.at(previousIndex()).getNumOfFeatures() > 2;
-	bool handTwoPresent = handTwo.at(previousIndex()).isPresent() && handTwo.at(previousIndex()).getNumOfFeatures() > 2;
-	Point handOneCenter = handOne.at(previousIndex()).getMinCircleCenter();
-	Point handTwoCenter = handTwo.at(previousIndex()).getMinCircleCenter();
+	int hand_distance_threshold = 60;
+	uint contour_radius_threshold = 50;
 
-	handOne[index()].clear();
-	handTwo[index()].clear();
-	Point2f tmpCenter, max1Center, max2Center;
-	float tmpRadius = 0, max1Radius = 0, max2Radius = 0;
-	int max1ContourIndex = 0, max2ContourIndex = 0;
-	int contour_size_threshold = 40;
+	Point handCenter [hands.size()];
 
-	for (uint i = 0; i < contours.size(); i++) {
-		if(contours[i].size() > contour_size_threshold) {
-			minEnclosingCircle(Mat(contours[i]), tmpCenter, tmpRadius);
-			if (tmpRadius > max1Radius) {
-				if (max1Radius > max2Radius) {
-					max2Radius = max1Radius;
-					max2Center = max1Center;
-					max2ContourIndex = max1ContourIndex;
+	for(uint i=0; i<hands.size(); i++) {
+
+		handCenter[i] = hands[i][previousIndex()]->getMinCircleCenter();
+	}
+
+	Point2f tmpCenter;
+	float tmpRadius = 0;
+
+	Point2f contourCenter [max_hands];
+	float contourRadius [max_hands] = {-1.0f};
+	int contourCount = 0;
+
+	for(uint i=0; i < contours.size(); i++) {
+
+		minEnclosingCircle(Mat(contours[i]), tmpCenter, tmpRadius);
+
+		if( tmpRadius > contour_radius_threshold ) {
+
+			for(int j=0; j<max_hands; j++) {
+
+				if (tmpRadius > contourRadius[j] && (contourRadius[j] > 0.0f || j == 0)) {
+
+					if(j<max_hands-1) {
+						contourRadius[j+1] = contourRadius[j];
+						contourCenter[j+1] = contourCenter[j];
+					}
+
+					contourRadius[j] = tmpRadius;
+					contourCenter[j] = tmpCenter;
+
+					contourCount = contourCount == max_hands ? max_hands : contourCount + 1;
 				}
-				max1Radius = tmpRadius;
-				max1Center = tmpCenter;
-				max1ContourIndex = i;
-			} else if (tmpRadius > max2Radius) {
-				//max1Radius is bigger than max2Radius
-				max2Radius = tmpRadius;
-				max2Center = tmpCenter;
-				max2ContourIndex = i;
 			}
 		}
 	}
 
-	//Detect the two largest circles that represent hands, if they exist
-	if(max1Radius > setting.radius_threshold && max2Radius > setting.radius_threshold) {
-		//Two hands Present
-		if(!handOnePresent && !handTwoPresent) {
-			//default: max1 is hand one
-			handOne[index()].setMinCircleCenter(max1Center);
-			handOne[index()].setMinCircleRadius(max1Radius);
-			handOne[index()].setContour(contours[max1ContourIndex]);
-			handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-			handOne[index()].setPresent(true);
-			//and max2 is hand two
-			handTwo[index()].setMinCircleCenter(max2Center);
-			handTwo[index()].setMinCircleRadius(max2Radius);
-			handTwo[index()].setContour(contours[max2ContourIndex]);
-			handTwo[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-			handTwo[index()].setPresent(true);
-		} else if(handOnePresent && !handTwoPresent) {
-			if(getDistance(handOneCenter, max1Center) < getDistance(handOneCenter, max2Center)) {
-				//max1 is on the left
-				handOne[index()].setMinCircleCenter(max1Center);
-				handOne[index()].setMinCircleRadius(max1Radius);
-				handOne[index()].setContour(contours[max1ContourIndex]);
-				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handOne[index()].setPresent(true);
-				//and max2 is on the right
-				handTwo[index()].setMinCircleCenter(max2Center);
-				handTwo[index()].setMinCircleRadius(max2Radius);
-				handTwo[index()].setContour(contours[max2ContourIndex]);
-				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-				handTwo[index()].setPresent(true);
-			} else {
-				//max1 is on the right
-				handTwo[index()].setMinCircleCenter(max1Center);
-				handTwo[index()].setMinCircleRadius(max1Radius);
-				handTwo[index()].setContour(contours[max1ContourIndex]);
-				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handTwo[index()].setPresent(true);
-				//max2 is therefore on the left
-				handOne[index()].setMinCircleCenter(max2Center);
-				handOne[index()].setMinCircleRadius(max2Radius);
-				handOne[index()].setContour(contours[max2ContourIndex]);
-				handOne[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-				handOne[index()].setPresent(true);
-			}
-		} else {
-			if(getDistance(handTwoCenter, max1Center) > getDistance(handTwoCenter, max2Center)) {
-				//max1 is on the left
-				handOne[index()].setMinCircleCenter(max1Center);
-				handOne[index()].setMinCircleRadius(max1Radius);
-				handOne[index()].setContour(contours[max1ContourIndex]);
-				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handOne[index()].setPresent(true);
-				//and max2 is on the right
-				handTwo[index()].setMinCircleCenter(max2Center);
-				handTwo[index()].setMinCircleRadius(max2Radius);
-				handTwo[index()].setContour(contours[max2ContourIndex]);
-				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-				handTwo[index()].setPresent(true);
-			} else {
-				//max1 is on the right
-				handTwo[index()].setMinCircleCenter(max1Center);
-				handTwo[index()].setMinCircleRadius(max1Radius);
-				handTwo[index()].setContour(contours[max1ContourIndex]);
-				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handTwo[index()].setPresent(true);
-				//max2 is therefore on the left
-				handOne[index()].setMinCircleCenter(max2Center);
-				handOne[index()].setMinCircleRadius(max2Radius);
-				handOne[index()].setContour(contours[max2ContourIndex]);
-				handOne[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-				handOne[index()].setPresent(true);
-			}
-		}
-	} else if(max1Radius > setting.radius_threshold ){
-		if(!handOnePresent && !handTwoPresent) {
-			handOne[index()].setMinCircleCenter(max1Center);
-			handOne[index()].setMinCircleRadius(max1Radius);
-			handOne[index()].setContour(contours[max1ContourIndex]);
-			handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-			handOne[index()].setPresent(true);
+	list <weighted_edge> edges = list<weighted_edge>(contourCount * hands.size());
 
-		} else if(handOnePresent && !handTwoPresent) {
-			if(getDistance(handOneCenter, max1Center) < setting.radius_threshold*4) {
-				handOne[index()].setMinCircleCenter(max1Center);
-				handOne[index()].setMinCircleRadius(max1Radius);
-				handOne[index()].setContour(contours[max1ContourIndex]);
-				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handOne[index()].setPresent(true);
-				//clear right hand
-				handTwo[index()].clear();
-			} else {
-				handTwo[index()].setMinCircleCenter(max1Center);
-				handTwo[index()].setMinCircleRadius(max1Radius);
-				handTwo[index()].setContour(contours[max1ContourIndex]);
-				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handTwo[index()].setPresent(true);
-				//clear right hand
-				handOne[index()].clear();
-			}
-		} else {
-			if(getDistance(handTwoCenter, max1Center) > setting.radius_threshold*4) {
-				handOne[index()].setMinCircleCenter(max1Center);
-				handOne[index()].setMinCircleRadius(max1Radius);
-				handOne[index()].setContour(contours[max1ContourIndex]);
-				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handOne[index()].setPresent(true);
-				//clear right hand
-				handTwo[index()].clear();
-			} else {
-				handTwo[index()].setMinCircleCenter(max1Center);
-				handTwo[index()].setMinCircleRadius(max1Radius);
-				handTwo[index()].setContour(contours[max1ContourIndex]);
-				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-				handTwo[index()].setPresent(true);
-				//clear right hand
-				handOne[index()].clear();
-			}
+	for(int i=0; i<contourCount; i++) {
+
+		for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+
+			int j = it->first;
+			struct weighted_edge e;
+			e.contourIndex = i;
+			e.handIndex = j;
+			e.weight = getDistance(contourCenter[i], handCenter[j]);
+			edges.push_back(e);
 		}
-	} else {
-		handTwo[index()].clear();
-		handOne[index()].clear();
 	}
+
+	edges.sort(compareWeightedEdges);
+
+	int contourAvailable [contourCount];
+
+	for (int i=0; i<contourCount; i++) {
+	  contourAvailable[i] = true;
+	}
+
+	list<int> availableHands = list<int>();
+
+	for(int i=0; i<max_hands; i++) {
+
+		if(hands.count(i) == 0) {
+			availableHands.push_back(i);
+		}
+	}
+
+	list<weighted_edge>::iterator it;
+	for(it = edges.begin(); it != edges.end(); ++it)
+	{
+		int hIndex = it->handIndex;
+		int cIndex = it->contourIndex;
+
+		if(it->weight < hand_distance_threshold) {
+
+			hands[hIndex][index()]->setMinCircleCenter(contourCenter[cIndex]);
+			hands[hIndex][index()]->setMinCircleRadius(contourRadius[cIndex]);
+			hands[hIndex][index()]->setContour(contours[cIndex]);
+			hands[hIndex][index()]->setMinRect(minAreaRect(Mat(contours[cIndex])));
+			hands[hIndex][index()]->setPresent(true);
+
+			contourAvailable[cIndex] = false;
+
+			list<weighted_edge>::iterator itInner = edges.begin();
+
+			while( itInner != edges.end()) {
+				if( itInner->handIndex == hIndex || itInner->contourIndex == cIndex) {
+					edges.erase(itInner);
+					itInner = edges.begin();
+					it = edges.begin();
+
+				} else {
+					itInner++;
+				}
+			}
+
+			availableHands.remove(hIndex);
+
+		} else {
+
+			if(hands.count(hIndex) > 0) {
+
+				for(int i=0; i<hand_window_size; i++) {
+					delete hands[hIndex][i];
+				}
+
+				hands.erase(hIndex);
+			}
+
+			contourAvailable[cIndex] = false;
+		}
+	}
+
+	for(int i=0; i<contourCount; i++) {
+
+		if(availableHands.size() == 0) {
+			break;
+		}
+
+		if(contourAvailable[i] == true) {
+			int hIndex = availableHands.front();
+			availableHands.pop_front();
+
+			hands.insert( pair<int,vector<Hand*> >(hIndex, vector<Hand*>(hand_window_size, NULL)) );
+
+			for(int j=0; j<hand_window_size; j++) {
+				hands[hIndex][j] = new Hand();
+			}
+
+			hands[hIndex][index()]->setMinCircleCenter(contourCenter[i]);
+			hands[hIndex][index()]->setMinCircleRadius(contourRadius[i]);
+			hands[hIndex][index()]->setContour(contours[i]);
+			hands[hIndex][index()]->setMinRect(minAreaRect(Mat(contours[i])));
+			hands[hIndex][index()]->setPresent(true);
+		}
+	}
+
+//	//Detect the two largest circles that represent hands, if they exist
+//	if(max1Radius > setting.radius_threshold && max2Radius > setting.radius_threshold) {
+//		//Two hands Present
+//		if(!handOnePresent && !handTwoPresent) {
+//			//default: max1 is hand one
+//			handOne[index()].setMinCircleCenter(max1Center);
+//			handOne[index()].setMinCircleRadius(max1Radius);
+//			handOne[index()].setContour(contours[max1ContourIndex]);
+//			handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//			handOne[index()].setPresent(true);
+//			//and max2 is hand two
+//			handTwo[index()].setMinCircleCenter(max2Center);
+//			handTwo[index()].setMinCircleRadius(max2Radius);
+//			handTwo[index()].setContour(contours[max2ContourIndex]);
+//			handTwo[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
+//			handTwo[index()].setPresent(true);
+//		} else if(handOnePresent && !handTwoPresent) {
+//			if(getDistance(handOneCenter, max1Center) < getDistance(handOneCenter, max2Center)) {
+//				//max1 is on the left
+//				handOne[index()].setMinCircleCenter(max1Center);
+//				handOne[index()].setMinCircleRadius(max1Radius);
+//				handOne[index()].setContour(contours[max1ContourIndex]);
+//				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handOne[index()].setPresent(true);
+//				//and max2 is on the right
+//				handTwo[index()].setMinCircleCenter(max2Center);
+//				handTwo[index()].setMinCircleRadius(max2Radius);
+//				handTwo[index()].setContour(contours[max2ContourIndex]);
+//				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
+//				handTwo[index()].setPresent(true);
+//			} else {
+//				//max1 is on the right
+//				handTwo[index()].setMinCircleCenter(max1Center);
+//				handTwo[index()].setMinCircleRadius(max1Radius);
+//				handTwo[index()].setContour(contours[max1ContourIndex]);
+//				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handTwo[index()].setPresent(true);
+//				//max2 is therefore on the left
+//				handOne[index()].setMinCircleCenter(max2Center);
+//				handOne[index()].setMinCircleRadius(max2Radius);
+//				handOne[index()].setContour(contours[max2ContourIndex]);
+//				handOne[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
+//				handOne[index()].setPresent(true);
+//			}
+//		} else {
+//			if(getDistance(handTwoCenter, max1Center) > getDistance(handTwoCenter, max2Center)) {
+//				//max1 is on the left
+//				handOne[index()].setMinCircleCenter(max1Center);
+//				handOne[index()].setMinCircleRadius(max1Radius);
+//				handOne[index()].setContour(contours[max1ContourIndex]);
+//				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handOne[index()].setPresent(true);
+//				//and max2 is on the right
+//				handTwo[index()].setMinCircleCenter(max2Center);
+//				handTwo[index()].setMinCircleRadius(max2Radius);
+//				handTwo[index()].setContour(contours[max2ContourIndex]);
+//				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
+//				handTwo[index()].setPresent(true);
+//			} else {
+//				//max1 is on the right
+//				handTwo[index()].setMinCircleCenter(max1Center);
+//				handTwo[index()].setMinCircleRadius(max1Radius);
+//				handTwo[index()].setContour(contours[max1ContourIndex]);
+//				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handTwo[index()].setPresent(true);
+//				//max2 is therefore on the left
+//				handOne[index()].setMinCircleCenter(max2Center);
+//				handOne[index()].setMinCircleRadius(max2Radius);
+//				handOne[index()].setContour(contours[max2ContourIndex]);
+//				handOne[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
+//				handOne[index()].setPresent(true);
+//			}
+//		}
+//	} else if(max1Radius > setting.radius_threshold ){
+//		if(!handOnePresent && !handTwoPresent) {
+//			handOne[index()].setMinCircleCenter(max1Center);
+//			handOne[index()].setMinCircleRadius(max1Radius);
+//			handOne[index()].setContour(contours[max1ContourIndex]);
+//			handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//			handOne[index()].setPresent(true);
+//
+//		} else if(handOnePresent && !handTwoPresent) {
+//			if(getDistance(handOneCenter, max1Center) < setting.radius_threshold*4) {
+//				handOne[index()].setMinCircleCenter(max1Center);
+//				handOne[index()].setMinCircleRadius(max1Radius);
+//				handOne[index()].setContour(contours[max1ContourIndex]);
+//				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handOne[index()].setPresent(true);
+//				//clear right hand
+//				handTwo[index()].clear();
+//			} else {
+//				handTwo[index()].setMinCircleCenter(max1Center);
+//				handTwo[index()].setMinCircleRadius(max1Radius);
+//				handTwo[index()].setContour(contours[max1ContourIndex]);
+//				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handTwo[index()].setPresent(true);
+//				//clear right hand
+//				handOne[index()].clear();
+//			}
+//		} else {
+//			if(getDistance(handTwoCenter, max1Center) > setting.radius_threshold*4) {
+//				handOne[index()].setMinCircleCenter(max1Center);
+//				handOne[index()].setMinCircleRadius(max1Radius);
+//				handOne[index()].setContour(contours[max1ContourIndex]);
+//				handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handOne[index()].setPresent(true);
+//				//clear right hand
+//				handTwo[index()].clear();
+//			} else {
+//				handTwo[index()].setMinCircleCenter(max1Center);
+//				handTwo[index()].setMinCircleRadius(max1Radius);
+//				handTwo[index()].setContour(contours[max1ContourIndex]);
+//				handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
+//				handTwo[index()].setPresent(true);
+//				//clear right hand
+//				handOne[index()].clear();
+//			}
+//		}
+//	} else {
+//		handTwo[index()].clear();
+//		handOne[index()].clear();
+//	}
 
 //	//Detect the two largest circles that represent hands, if they exist
 //	if(max1Radius > setting.radius_threshold && max2Radius > setting.radius_threshold) {
@@ -660,20 +808,6 @@ void findHands(vector<vector<cv::Point> > contours) {
 }
 
 /**
- * Calculate and return the number of detected hands in the current frame
- */
-int numberOfHands() {
-	int numberOfHands = 0;
-	if (handOne.at(index()).isPresent()) {
-		numberOfHands++;
-	}
-	if (handTwo.at(index()).isPresent()) {
-		numberOfHands++;
-	}
-	return numberOfHands;
-}
-
-/**
  * Returns the current index based on the frame count that is used to identify which hand in the
  * handOne and handTwo arrays are corresponding to current frame
  */
@@ -704,41 +838,38 @@ int previousIndex(int i) {
  * @Precondition: assignFeaturedToHand() is executed and leftRightStatus[i] is filled
  */
 void drawFeatures(Mat img) {
-	//Left hand
-	if(handOne.at(index()).isPresent()) {
-		vector<Point2f> points = handOne.at(index()).getFeatures();
-		vector<Point2f> vectors = handOne.at(index()).getVectors();
-		for (uint i = 0; i < points.size(); i++) {
-			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), ORANGE);
-			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
+
+	for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+
+		int i = it->first;
+
+		if(hands[i][index()]->isPresent()) {
+			vector<Point2f> points = hands[i][index()]->getFeatures();
+			vector<Point2f> vectors = hands[i][index()]->getVectors();
+			for (uint i = 0; i < points.size(); i++) {
+				rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), COLORS[i % NUM_COLORS]);
+				line(img, points[i], (points[i] + vectors[i]), COLORS[i % NUM_COLORS], 2, 8, 0);
+			}
 		}
 	}
 
-	//Right hand
-	if(handTwo.at(index()).isPresent()) {
-		vector<Point2f> points = handTwo.at(index()).getFeatures();
-		vector<Point2f> vectors = handTwo.at(index()).getVectors();
-		for (uint i = 0; i < points.size(); i++) {
-			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), BLUE);
-			line(img, points[i], (points[i] + vectors[i]), BLUE, 2, 8, 0);
-		}
-	}
-//	for(int i = 0; i < maxCorners; i++) {
-//		if(leftRightStatus[i] == 1) {
-//			// Left hand
-//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), ORANGE);
-//			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, ORANGE);
-//		} else if(leftRightStatus[i] == 2) {
-//			// Right hand
-//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), BLUE);
-//			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, BLUE);
-//		} else {
-//			// None
-//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), PINK);
+	//	//Left hand
+//	if(handOne.at(index()).isPresent()) {
+//		vector<Point2f> points = handOne.at(index()).getFeatures();
+//		vector<Point2f> vectors = handOne.at(index()).getVectors();
+//		for (uint i = 0; i < points.size(); i++) {
+//			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), ORANGE);
+//			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
 //		}
+//	}
 //
-//		if((uchar)flowStatus[i] == 1) {
-//			line(img, currentCorners[i], previousCorners[i], GREEN, 2, 8, 0);
+//	//Right hand
+//	if(handTwo.at(index()).isPresent()) {
+//		vector<Point2f> points = handTwo.at(index()).getFeatures();
+//		vector<Point2f> vectors = handTwo.at(index()).getVectors();
+//		for (uint i = 0; i < points.size(); i++) {
+//			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), BLUE);
+//			line(img, points[i], (points[i] + vectors[i]), BLUE, 2, 8, 0);
 //		}
 //	}
 }
@@ -748,14 +879,25 @@ void drawFeatures(Mat img) {
  * the hand temporal window
  */
 void drawMeanAndStdDev(Mat img) {
-	if(handOne.at(index()).isPresent()) {
-		circle(img, handOne.at(index()).getFeatureMean(), handOne.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
-		line(img, handOne.at(index()).getFeatureMean(), handOne.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
+
+	for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+
+		int i = it->first;
+
+		if(hands[i][index()]->isPresent() && hands[i][index()]->getNumOfFeatures() > 0) {
+			circle(img, hands[i][index()]->getFeatureMean(), hands[i][index()]->getFeatureStdDev(), YELLOW, 1, 4, 0);
+			line(img, hands[i][index()]->getFeatureMean(), hands[i][index()]->getMinCircleCenter(), YELLOW, 1, 4, 0);
+		}
 	}
-	if(handTwo.at(index()).isPresent()) {
-		circle(img, handTwo.at(index()).getFeatureMean(), handTwo.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
-		line(img, handTwo.at(index()).getFeatureMean(), handTwo.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
-	}
+
+//	if(handOne.at(index()).isPresent()) {
+//		circle(img, handOne.at(index()).getFeatureMean(), handOne.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
+//		line(img, handOne.at(index()).getFeatureMean(), handOne.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
+//	}
+//	if(handTwo.at(index()).isPresent()) {
+//		circle(img, handTwo.at(index()).getFeatureMean(), handTwo.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
+//		line(img, handTwo.at(index()).getFeatureMean(), handTwo.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
+//	}
 }
 
 /**
@@ -769,18 +911,32 @@ void assignFeaturesToHands() {
 		if(flowStatus[i] == 1) {
 			flowCount[i] += 1;
 			if(flowCount[i] > 2) {
-				if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
-					//point is inside contour of the left hand
-					Point2f vector = currentCorners[i] - previousCorners[i];
-					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector);
-				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
-					Point2f vector = currentCorners[i] - previousCorners[i];
-					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector);
-				} else {
-					//this is noise or some other object
-					//leftRightStatus.push_back(0); //Neither hand
-					//Don't worry about it!
+
+				for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+					int i = it->first;
+
+					if(hands[i][index()]->isPresent()) {
+
+						if(hands[i][index()]->hasPointInside(currentCorners[i])) {
+							//point is inside contour of the hand
+							Point2f vector = currentCorners[i] - previousCorners[i];
+							hands[i][index()]->addFeatureAndVector(currentCorners[i], vector);
+						}
+					}
 				}
+
+//				if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
+//					//point is inside contour of the left hand
+//					Point2f vector = currentCorners[i] - previousCorners[i];
+//					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector);
+//				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
+//					Point2f vector = currentCorners[i] - previousCorners[i];
+//					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector);
+//				} else {
+//					//this is noise or some other object
+//					//leftRightStatus.push_back(0); //Neither hand
+//					//Don't worry about it!
+//				}
 			}
 		} else {
 			flowCount[i] = 0;
@@ -800,12 +956,17 @@ float getDistance(const Point2f a, const Point2f b) {
  * @Precondition: assignFeatureToHands is executed
  */
 void meanAndStdDevExtract() {
-	if(handOne.at(index()).isPresent()) {
-		handOne.at(index()).calcMeanStdDev();
+
+	for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
+		int i = it->first;
+		hands[i][index()]->calcMeanStdDev();
 	}
-	if(handTwo.at(index()).isPresent()){
-		handTwo.at(index()).calcMeanStdDev();
-	}
+//	if(handOne.at(index()).isPresent()) {
+//		handOne.at(index()).calcMeanStdDev();
+//	}
+//	if(handTwo.at(index()).isPresent()){
+//		handTwo.at(index()).calcMeanStdDev();
+//	}
 }
 
 /**
@@ -846,4 +1007,8 @@ void featureDepthExtract(const Mat img) {
 //			featureDepth.push_back(-1);
 //		}
 //	}
+}
+
+bool compareWeightedEdges(weighted_edge e1, weighted_edge e2) {
+	return e1.weight < e2.weight;
 }

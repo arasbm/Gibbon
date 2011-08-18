@@ -28,11 +28,11 @@
 class GestureTracker {
 
 public:
-	static void checkGestures(vector<Hand>* h);
+	static void checkGestures(vector<Hand*> h);
 
 private:
-	static bool checkGrabRelease(vector<Hand>* h);
-	static bool checkRotate(vector<Hand>* h);
+	static bool checkGrabRelease(vector<Hand*> h);
+	static bool checkRotate(vector<Hand*> h);
 };
 
 #endif /* GESTURETRACKER_H_ */

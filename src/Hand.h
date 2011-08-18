@@ -27,11 +27,6 @@
 
 using namespace cv;
 
-typedef enum _handSide {
-	LEFT_HAND,
-	RIGHT_HAND
-} handSide;
-
 typedef enum _gesture {
 	GESTURE_NONE = 0,
 	GESTURE_GRAB = 1,
@@ -41,8 +36,7 @@ typedef enum _gesture {
 class Hand {
 
 public:
-	Hand(handSide s);
-	handSide getHandSide();
+	Hand();
 	bool isPresent();
 	void setPresent(bool present);
 	void setMinRect(RotatedRect minRect);
@@ -74,7 +68,6 @@ public:
 	bool hasGesture();
 
 private:
-	handSide side;
 	gesture handGesture;
 	Point2f circleCenter; //center of enclosing circle
 	vector<cv::Point> contour;
