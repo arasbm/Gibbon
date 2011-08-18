@@ -214,19 +214,16 @@ void drawHandTrace(Mat img) {
 
 		int i = it->first;
 
-		if(hands[i][index()]->isPresent()) {
+		ellipse(img, hands[i][index()]->getMinRect(), COLORS[i % NUM_COLORS], 2, 8);
 
-			ellipse(img, hands[i][index()]->getMinRect(), COLORS[i], 2, 8);
+		for(int j = 0; j+1 < hand_window_size; j++) {
 
-			for(int j = 0; j+1 < hand_window_size; j++) {
+			int current = previousIndex(j);
+			int previous = previousIndex(j + 1);
 
-				int current = previousIndex(j);
-				int previous = previousIndex(j + 1);
-
-				if(current >= 0 && previous >= 0) {
-					if(hands[i][current]->isPresent() && hands[i][previous]->isPresent()) {
-						line(img, hands[i][previous]->getMinCircleCenter(), hands[i][current]->getMinCircleCenter(), COLORS[i], 2, 4, 0);
-					}
+			if(current >= 0 && previous >= 0) {
+				if(hands[i][current]->isPresent() && hands[i][previous]->isPresent()) {
+					line(img, hands[i][previous]->getMinCircleCenter(), hands[i][current]->getMinCircleCenter(), COLORS[i % NUM_COLORS], 2, 4, 0);
 				}
 			}
 		}
@@ -500,19 +497,21 @@ void findHands(vector<vector<cv::Point> > contours) {
 	int hand_distance_threshold = 60;
 	uint contour_radius_threshold = 50;
 
-	Point handCenter [hands.size()];
+	Point handCenter [max_hands];
 
-	for(uint i=0; i<hands.size(); i++) {
+	for(map<int, vector<Hand*> >::iterator it = hands.begin(); it != hands.end(); ++it) {
 
+		int i = it->first;
+		cout << "Hand " << i << ": " << hands[i][index()]->isPresent() << endl;
 		handCenter[i] = hands[i][previousIndex()]->getMinCircleCenter();
+		hands[i][index()]->clear();
 	}
 
 	Point2f tmpCenter;
 	float tmpRadius = 0;
 
-	Point2f contourCenter [max_hands];
-	float contourRadius [max_hands] = {-1.0f};
-	int contourCount = 0;
+	vector<float> contourRadius = vector<float>();
+	vector<Point> contourCenter = vector<Point>();
 
 	for(uint i=0; i < contours.size(); i++) {
 
@@ -520,23 +519,26 @@ void findHands(vector<vector<cv::Point> > contours) {
 
 		if( tmpRadius > contour_radius_threshold ) {
 
-			for(int j=0; j<max_hands; j++) {
+			vector<float>::iterator itRadius;
+			vector<Point>::iterator itCenter = contourCenter.begin();
 
-				if (tmpRadius > contourRadius[j] && (contourRadius[j] > 0.0f || j == 0)) {
-
-					if(j<max_hands-1) {
-						contourRadius[j+1] = contourRadius[j];
-						contourCenter[j+1] = contourCenter[j];
-					}
-
-					contourRadius[j] = tmpRadius;
-					contourCenter[j] = tmpCenter;
-
-					contourCount = contourCount == max_hands ? max_hands : contourCount + 1;
+			for(itRadius = contourRadius.begin(); itRadius != contourRadius.end(); itRadius++) {
+				if(tmpRadius > *itRadius) {
+					break;
 				}
+				itCenter++;
+			}
+
+			contourRadius.insert(itRadius, tmpRadius);
+			contourCenter.insert(itCenter, tmpCenter);
+
+			if(contourRadius.size() > 8) {
+				contourRadius.pop_back();
 			}
 		}
 	}
+
+	int contourCount = contourRadius.size();
 
 	list <weighted_edge> edges = list<weighted_edge>(contourCount * hands.size());
 
@@ -555,23 +557,17 @@ void findHands(vector<vector<cv::Point> > contours) {
 
 	edges.sort(compareWeightedEdges);
 
-	int contourAvailable [contourCount];
-
-	for (int i=0; i<contourCount; i++) {
-	  contourAvailable[i] = true;
-	}
-
+	list<int> availableContours = list<int>();
 	list<int> availableHands = list<int>();
 
+	for(int i=0; i<contourCount; i++) {
+		availableContours.push_back(i);
+	}
 	for(int i=0; i<max_hands; i++) {
-
-		if(hands.count(i) == 0) {
-			availableHands.push_back(i);
-		}
+		availableHands.push_back(i);
 	}
 
-	list<weighted_edge>::iterator it;
-	for(it = edges.begin(); it != edges.end(); ++it)
+	for(list<weighted_edge>::iterator it = edges.begin(); it != edges.end(); ++it)
 	{
 		int hIndex = it->handIndex;
 		int cIndex = it->contourIndex;
@@ -583,8 +579,6 @@ void findHands(vector<vector<cv::Point> > contours) {
 			hands[hIndex][index()]->setContour(contours[cIndex]);
 			hands[hIndex][index()]->setMinRect(minAreaRect(Mat(contours[cIndex])));
 			hands[hIndex][index()]->setPresent(true);
-
-			contourAvailable[cIndex] = false;
 
 			list<weighted_edge>::iterator itInner = edges.begin();
 
@@ -598,45 +592,44 @@ void findHands(vector<vector<cv::Point> > contours) {
 					itInner++;
 				}
 			}
-
+			availableContours.remove(cIndex);
 			availableHands.remove(hIndex);
 
 		} else {
-
-			if(hands.count(hIndex) > 0) {
-
-				for(int i=0; i<hand_window_size; i++) {
-					delete hands[hIndex][i];
-				}
-
-				hands.erase(hIndex);
-			}
-
-			contourAvailable[cIndex] = false;
+			break;
 		}
 	}
 
-	for(int i=0; i<contourCount; i++) {
+	while(availableContours.size() > 0 && availableHands.size() > 0) {
 
-		if(availableHands.size() == 0) {
-			break;
+		int cIndex = availableContours.front();
+		int hIndex = availableHands.front();
+		availableContours.pop_front();
+		availableHands.pop_front();
+
+		hands.insert( pair<int,vector<Hand*> >(hIndex, vector<Hand*>(hand_window_size, NULL)) );
+
+		for(int j=0; j<hand_window_size; j++) {
+			hands[hIndex][j] = new Hand();
 		}
 
-		if(contourAvailable[i] == true) {
-			int hIndex = availableHands.front();
-			availableHands.pop_front();
+		hands[hIndex][index()]->setMinCircleCenter(contourCenter[cIndex]);
+		hands[hIndex][index()]->setMinCircleRadius(contourRadius[cIndex]);
+		hands[hIndex][index()]->setContour(contours[cIndex]);
+		hands[hIndex][index()]->setMinRect(minAreaRect(Mat(contours[cIndex])));
+		hands[hIndex][index()]->setPresent(true);
+	}
 
-			hands.insert( pair<int,vector<Hand*> >(hIndex, vector<Hand*>(hand_window_size, NULL)) );
+	while(availableHands.size() > 0) {
 
+		int hIndex = availableHands.front();
+		availableHands.pop_front();
+
+		if(hands.count(hIndex) > 0) {
 			for(int j=0; j<hand_window_size; j++) {
-				hands[hIndex][j] = new Hand();
+				delete hands[hIndex][j];
 			}
-
-			hands[hIndex][index()]->setMinCircleCenter(contourCenter[i]);
-			hands[hIndex][index()]->setMinCircleRadius(contourRadius[i]);
-			hands[hIndex][index()]->setContour(contours[i]);
-			hands[hIndex][index()]->setMinRect(minAreaRect(Mat(contours[i])));
-			hands[hIndex][index()]->setPresent(true);
+			hands.erase(hIndex);
 		}
 	}
 

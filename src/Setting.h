@@ -42,8 +42,8 @@ const cv::Scalar BLUE = CV_RGB(51, 153, 255); // use for right hand
 const cv::Scalar OLIVE = CV_RGB(184, 184, 0);
 const cv::Scalar RANDOM_COLOR = CV_RGB( rand()&255, rand()&255, rand()&255 ); //a random color
 
-const cv::Scalar COLORS [] = {YELLOW,ORANGE,RED,PINK,GREEN,BLUE,OLIVE};
-const int NUM_COLORS = 7;
+const cv::Scalar COLORS [] = {YELLOW,ORANGE,RED,PINK,GREEN,BLUE};
+const int NUM_COLORS = 6;
 
 
 class Setting {
