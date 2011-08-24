@@ -79,8 +79,6 @@ bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
 
 		totalFeatures += features.size();
 
-//		verbosePrint("FEATURES: " + boost::lexical_cast<string>(features.size()));
-
 		for(int j=0; j<totalFeatures; j++) {
 
 			//first check if features are not converging, indicating no grab

@@ -55,13 +55,14 @@ vector<Hand> handTwo(hand_window_size, Hand(RIGHT_HAND)); //circular: see index(
 vector<Point2f> previousCorners;
 vector<Point2f> currentCorners; //Centre point of feature or corner rectangles
 vector<uchar> flowStatus; //set to 1 if the flow for the corresponding features has been found, 0 otherwise
-vector<float> flowCount; //number of times the flow of this feature has been detected
-vector<float> featureDepth;
-//vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
+vector<int> flowCount; //number of times the flow of this feature has been detected
 vector<float> flowError;
+
+//vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
+vector<float> featureDepth;
 TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
 double derivLambda = 0.5; //proportion for impact of "image intensity" as opposed to "derivatives"
-int maxCorners = 32;
+int maxCorners = 16;
 double qualityLevel = 0.01;
 double minDistance = 0;
 int blockSize = 24;
@@ -107,7 +108,6 @@ void init() {
 	if(setting.do_undistortion) {
 		undistortion = Undistortion();
 	}
-
 }
 
 /**
@@ -234,12 +234,9 @@ void processKey(char key) {
  * result is stored in global data structure
  */
 void findGoodFeatures(Mat frame1, Mat frame2) {
+
 	goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, frame1, blockSize, useHarrisDetector);
-	//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
 	calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), 1, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
-//	for(int i = 0; i < flowError.size(); i++) {
-//		cout << "err " << i << " : " << flowError[i] << endl;
-//	}
 }
 
 /**
@@ -279,7 +276,9 @@ void start(){
 	//Mat watershed_markers = cvCreateImage( setting.imageSize, IPL_DEPTH_32S, 1 );
 	//Mat watershed_image;
 
-	flowCount = vector<float>(maxCorners);
+	flowCount = vector<int>(maxCorners);
+	flowStatus = vector<uchar>(maxCorners);
+
 	char key = 'a';
 	timeval first_time, second_time; //for fps calculation
 	std::stringstream fps_str;
@@ -381,7 +380,7 @@ void start(){
 		//watershed(watershed_image, depthImage);
 		//imshow("Watershed", depthImage);
 
-		findHands(contours);
+		findHands(contours, &trackingResults);
 
 		if(numberOfHands() > 0) {
 			findGoodFeatures(previousFrame, currentFrame);
@@ -393,8 +392,13 @@ void start(){
 			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
 			drawMeanAndStdDev(trackingResults);
-			GestureTracker::checkGestures(&handOne);
-			GestureTracker::checkGestures(&handTwo);
+
+			if(handOne[index()].isPresent()) {
+				GestureTracker::checkGestures(&handOne);
+			}
+			if(handTwo[index()].isPresent()) {
+				GestureTracker::checkGestures(&handTwo);
+			}
 		} else {
 			//TODO: is any cleanup necessary here?
 		}
@@ -457,10 +461,10 @@ void start(){
 /**
  * Find two largest blobs which hopefully represent the two hands
  */
-void findHands(vector<vector<cv::Point> > contours) {
+void findHands(vector<vector<cv::Point> > contours, cv::Mat* img) {
 
-	bool handOnePresent = handOne.at(previousIndex()).isPresent() && handOne.at(previousIndex()).getNumOfFeatures() > 2;
-	bool handTwoPresent = handTwo.at(previousIndex()).isPresent() && handTwo.at(previousIndex()).getNumOfFeatures() > 2;
+	bool handOnePresent = handOne.at(previousIndex()).isPresent();
+	bool handTwoPresent = handTwo.at(previousIndex()).isPresent();
 	Point handOneCenter = handOne.at(previousIndex()).getMinCircleCenter();
 	Point handTwoCenter = handTwo.at(previousIndex()).getMinCircleCenter();
 
@@ -469,7 +473,9 @@ void findHands(vector<vector<cv::Point> > contours) {
 	Point2f tmpCenter, max1Center, max2Center;
 	float tmpRadius = 0, max1Radius = 0, max2Radius = 0;
 	int max1ContourIndex = 0, max2ContourIndex = 0;
-	int contour_side_threshold = 50;
+	int contour_side_threshold = 60;
+
+	float area_increase_tolerance = 1.2;
 
 	for (uint i = 0; i < contours.size(); i++) {
 
@@ -495,6 +501,56 @@ void findHands(vector<vector<cv::Point> > contours) {
 				max2Center = tmpCenter;
 				max2ContourIndex = i;
 			}
+		}
+	}
+
+	Size2f tmpSize = handOne[previousIndex()].getMinRect().size;
+	float tmpSide = min(tmpSize.height, tmpSize.width);
+	tmpSize = handTwo[previousIndex()].getMinRect().size;
+	tmpSide = min(tmpSide, min(tmpSize.height, tmpSize.width));
+
+	if( (handOnePresent && handTwoPresent) && (tmpSide > contour_side_threshold)) {
+		//if both hands present in previous frame and pass threshold test
+		//test if contours have merged (image of hands partially overlapping)
+
+		//find largest contour minRect area
+		Size2f max1Size = minAreaRect(Mat(contours[max1ContourIndex])).size;
+		Size2f max2Size = minAreaRect(Mat(contours[max2ContourIndex])).size;
+		float max1Area = max1Size.width * max1Size.height;
+		float max2Area = max2Size.width * max2Size.height;
+
+		float maxArea = max(max1Area,max2Area);
+		int maxIndex = max1Area > max2Area ? max1ContourIndex : max2ContourIndex;
+
+		Size2f previousHandOneSize = handOne[previousIndex()].getMinRect().size;
+		Size2f previousHandTwoSize = handTwo[previousIndex()].getMinRect().size;
+		float previousHandOneArea = previousHandOneSize.width * previousHandOneSize.height;
+		float previousHandTwoArea = previousHandTwoSize.width * previousHandTwoSize.height;
+
+		if( (previousHandOneArea + previousHandTwoArea) < (maxArea * area_increase_tolerance) ) {
+			//largest contour's area greater than previous two hand's contours combined
+			//hands likely touching in image
+
+			//divide contour in two based on bounding boxes of hands in previous frame
+			contours[max1ContourIndex] = contours[maxIndex];
+			contours[max2ContourIndex] = contours[maxIndex];
+			clipContour(&contours[max1ContourIndex], handOne[previousIndex()].getMinRect());
+			clipContour(&contours[max2ContourIndex], handTwo[previousIndex()].getMinRect());
+
+			//draw clipped contours for debugging
+			vector<vector<Point> > v = vector<vector<Point> >();
+			v.assign(1,contours[max1ContourIndex]);
+			drawContours(*img, v, -1, PINK, 1, 4);
+			v.assign(1,contours[max2ContourIndex]);
+			drawContours(*img, v, -1, GREEN, 1, 4);
+
+			minEnclosingCircle(Mat(contours[max1ContourIndex]), tmpCenter, tmpRadius);
+			max1Radius = tmpRadius;
+			max1Center = tmpCenter;
+
+			minEnclosingCircle(Mat(contours[max2ContourIndex]), tmpCenter, tmpRadius);
+			max2Radius = tmpRadius;
+			max2Center = tmpCenter;
 		}
 	}
 
@@ -779,9 +835,12 @@ void assignFeaturesToHands() {
 					//point is inside contour of the left hand
 					Point2f vector = currentCorners[i] - previousCorners[i];
 					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector);
+
 				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
+					//point is inside contour of the left hand
 					Point2f vector = currentCorners[i] - previousCorners[i];
 					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector);
+
 				} else {
 					//this is noise or some other object
 					//leftRightStatus.push_back(0); //Neither hand
@@ -815,21 +874,6 @@ void meanAndStdDevExtract() {
 }
 
 /**
- * Rotate specified image by specified angle in degrees
- */
-void rotateImage(Mat* src, Mat* dst, float degrees)
-{
-	   /// Compute a rotation matrix with respect to the center of the image
-	   Point center = Point(src->cols/2, src->rows/2);
-
-	   /// Get the rotation matrix with the specifications above
-	   Mat rot_mat = getRotationMatrix2D(center, degrees, 1.0f);
-
-	   /// Rotate the warped image
-	   warpAffine(*src, *dst, rot_mat, src->size());
-}
-
-/**
  * Calculate the depth of each feature based on the blurriness of its window
  * TODO: complete this function using minEigenValue calculation
  */
@@ -853,3 +897,60 @@ void featureDepthExtract(const Mat img) {
 //		}
 //	}
 }
+
+void clipContour(vector<Point>* contour, Rect boundingBox) {
+	float minX = boundingBox.x;
+	float maxX = boundingBox.x + boundingBox.width;
+	float minY = boundingBox.y;
+	float maxY = boundingBox.y + boundingBox.height;
+
+	for(vector<Point>::iterator it = contour->begin(); it != contour->end(); ++it){
+
+		if(it->x < minX) {
+			it->x = minX;
+		}
+		if(it->x > maxX) {
+			it->x = maxX;
+		}
+		if(it->y < minY) {
+			it->y = minY;
+		}
+		if(it->y > maxY) {
+			it->y = maxY;
+		}
+	}
+}
+
+void clipContour(vector<Point>* contour, RotatedRect boundingBox) {
+	float minX = -(boundingBox.size.width/2.0);
+	float maxX = boundingBox.size.width/2.0;
+	float minY = -(boundingBox.size.height/2.0);
+	float maxY = boundingBox.size.height/2.0;
+
+	for(vector<Point>::iterator it = contour->begin(); it != contour->end(); ++it) {
+
+		float tmpX = it->x - boundingBox.center.x;
+		float tmpY = it->y - boundingBox.center.y;
+		float x = tmpX*cos(boundingBox.angle) - tmpY*sin(boundingBox.angle);
+		float y = tmpX*sin(boundingBox.angle) + tmpY*cos(boundingBox.angle);
+		tmpX = x;
+		tmpY = y;
+
+		if(x < minX) {
+			tmpX = minX;
+		}
+		if(x > maxX) {
+			tmpX = maxX;
+		}
+		if(y < minY) {
+			tmpY = minY;
+		}
+		if(y > maxY) {
+			tmpY = maxY;
+		}
+
+		it->x = tmpX*cos(-boundingBox.angle) - tmpY*sin(-boundingBox.angle) + boundingBox.center.x;
+		it->y = tmpX*sin(-boundingBox.angle) + tmpY*cos(-boundingBox.angle) + boundingBox.center.y;
+	}
+}
+

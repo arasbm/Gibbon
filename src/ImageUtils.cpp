@@ -35,3 +35,18 @@ void depthFromDiffusion(Mat sourceImg, Mat depthImg) {
 	// blockSize define the window to consider around each pixel, so higher number produces larger blocks in the image
 	cv::cornerMinEigenVal(sourceImg, depthImg, 10, 9);
 }
+
+/**
+ * Rotate specified image by specified angle in degrees
+ */
+void rotateImage(Mat* src, Mat* dst, float degrees)
+{
+	   /// Compute a rotation matrix with respect to the center of the image
+	   Point center = Point(src->cols/2, src->rows/2);
+
+	   /// Get the rotation matrix with the specifications above
+	   Mat rot_mat = getRotationMatrix2D(center, degrees, 1.0f);
+
+	   /// Rotate the warped image
+	   warpAffine(*src, *dst, rot_mat, src->size());
+}
