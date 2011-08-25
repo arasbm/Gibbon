@@ -44,8 +44,8 @@ void CameraPGR::init(){
 	busManager.GetNumOfCameras(&totalCameras);
 	printf("Found %d cameras on the bus.\n",totalCameras);
 	fmt7ImageSettings.mode = MODE_0;
-	fmt7ImageSettings.offsetX = 92;
-	fmt7ImageSettings.offsetY = 20;
+	fmt7ImageSettings.offsetX = 96;
+	fmt7ImageSettings.offsetY = 60;
 	fmt7ImageSettings.width = setting.imageSize.width;
 	fmt7ImageSettings.height = setting.imageSize.height;
 	fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_MONO8;

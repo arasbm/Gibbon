@@ -118,7 +118,7 @@ private:
 
 		/*** pgr camera serrings ***/
 		pgr_cam_index = 0;
-		imageSize = cv::Size(580, 380); //size of the image after RIO selection
+		imageSize = cv::Size(580, 384); //size of the image after RIO selection
 	};// Private constructor
 
 	//Setting(const Setting&);                 // Prevent copy-construction

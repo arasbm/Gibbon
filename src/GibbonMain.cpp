@@ -459,8 +459,8 @@ void start(){
  */
 void findHands(vector<vector<cv::Point> > contours) {
 
-	bool handOnePresent = handOne.at(previousIndex()).isPresent() && handOne.at(previousIndex()).getNumOfFeatures() > 2;
-	bool handTwoPresent = handTwo.at(previousIndex()).isPresent() && handTwo.at(previousIndex()).getNumOfFeatures() > 2;
+	bool handOnePresent = handOne.at(previousIndex()).isPresent();
+	bool handTwoPresent = handTwo.at(previousIndex()).isPresent();
 	Point handOneCenter = handOne.at(previousIndex()).getMinCircleCenter();
 	Point handTwoCenter = handTwo.at(previousIndex()).getMinCircleCenter();
 
