@@ -30,10 +30,10 @@
 using namespace TUIO;
 using namespace osc;
 
-static Setting setting = Setting::Instance();
+static Setting* setting = Setting::Instance();
 
 Message::Message() {
-	if(setting.send_tuio) {
+	if(setting->send_tuio) {
 		tuioServer = new TuioServer();
 	}
 }
@@ -43,7 +43,7 @@ Message::Message() {
  * The new message will not be sent until it is committed
  */
 void Message::init() {
-	if(setting.send_tuio) {
+	if(setting->send_tuio) {
 		TuioTime time = TuioTime::getSessionTime();
 		tuioServer->initFrame(time);
 	}
@@ -54,7 +54,7 @@ void Message::init() {
  * for this hand and any gestures associated with it
  */
 void Message::newHand(Hand hand) {
-	if(setting.send_tuio) {
+	if(setting->send_tuio) {
 		//tuioTime = TuioTime::getSessionTime();
 		//handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
 		handList[hand.getHandSide()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
@@ -66,7 +66,7 @@ void Message::newHand(Hand hand) {
  * appropriate protocols such as TUIO
  */
 void Message::updateHand(Hand hand) {
-	if(setting.send_tuio) {
+	if(setting->send_tuio) {
 		tuioServer->updateTuioObject(handList[hand.getHandSide()], hand.getX(), hand.getY(), hand.getAngle());
 	}
 }
@@ -75,7 +75,7 @@ void Message::updateHand(Hand hand) {
  * send the message that this hand is not present
  */
 void Message::removeHand(Hand hand) {
-	if(setting.send_tuio) {
+	if(setting->send_tuio) {
 		tuioServer->removeTuioObject(handList[hand.getHandSide()]);
 	}
 }
@@ -85,13 +85,13 @@ void Message::removeHand(Hand hand) {
  * the message will be transmitted to the client using appropriate protocol(s) such as TUIO
  */
 void Message::commit() {
-	if(setting.send_tuio) {
+	if(setting->send_tuio) {
 		tuioServer->commitFrame();
 	}
 }
 
 Message::~Message() {
-	if(setting.send_tuio) {
+	if(setting->send_tuio) {
 		handList.clear();
 		delete tuioServer;
 	}

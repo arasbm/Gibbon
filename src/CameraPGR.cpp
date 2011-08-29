@@ -25,10 +25,10 @@
 
 using namespace FlyCapture2;
 
-static Setting setting = Setting::Instance();
+static Setting* setting = Setting::Instance();
 
 CameraPGR::CameraPGR() {
-	setting.pgr_cam_index = 0;
+	setting->pgr_cam_index = 0;
 }
 
 CameraPGR::~CameraPGR() {
@@ -44,14 +44,14 @@ void CameraPGR::init(){
 	busManager.GetNumOfCameras(&totalCameras);
 	printf("Found %d cameras on the bus.\n",totalCameras);
 	fmt7ImageSettings.mode = MODE_0;
-	fmt7ImageSettings.offsetX = 92;
-	fmt7ImageSettings.offsetY = 20;
-	fmt7ImageSettings.width = setting.imageSize.width;
-	fmt7ImageSettings.height = setting.imageSize.height;
+	fmt7ImageSettings.offsetX = 96;
+	fmt7ImageSettings.offsetY = 60;
+	fmt7ImageSettings.width = setting->imageSize.width;
+	fmt7ImageSettings.height = setting->imageSize.height;
 	fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_MONO8;
     bool valid;
 
-    busManager.GetCameraFromIndex(setting.pgr_cam_index, &guid);
+    busManager.GetCameraFromIndex(setting->pgr_cam_index, &guid);
 	Error pgError;
 	pgError = pgrCam.Connect(&guid);
 	if (pgError != PGRERROR_OK){

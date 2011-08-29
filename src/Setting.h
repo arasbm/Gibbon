@@ -46,9 +46,9 @@ const cv::Scalar RANDOM_COLOR = CV_RGB( rand()&255, rand()&255, rand()&255 ); //
 class Setting {
 
 public:
-	static Setting& Instance(){
+	static Setting* Instance(){
 	    static Setting singleton;
-	    return singleton;
+	    return &singleton;
 	}
 
     bool loadOptions(int argc, char* argv[]);

@@ -27,7 +27,7 @@
 
 using namespace cv;
 
-static Setting setting = Setting::Instance();
+static Setting* setting = Setting::Instance();
 
 /**
  * Initialize distortion calibration data by loading the necessary files
@@ -40,8 +40,8 @@ Undistortion::Undistortion() {
 	fsDistortion["Distortions"] >> distortion;
 	fsIntrinsic.release();
 	fsDistortion.release();
-	//newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, setting.imageSize, setting.undistortion_factor);
-	newCameraMatrix = getDefaultNewCameraMatrix(intrinsic, setting.imageSize, true);
+	//newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, setting->imageSize, setting->undistortion_factor);
+	newCameraMatrix = getDefaultNewCameraMatrix(intrinsic, setting->imageSize, true);
 }
 
 /**

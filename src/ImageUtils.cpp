@@ -20,12 +20,9 @@
  */
 
 #include "ImageUtils.h"
-#include "Setting.h"
 #include "cv.h"
 
 using namespace cv;
-
-static Setting setting = Setting::Instance();
 
 /**
  * Experimental
