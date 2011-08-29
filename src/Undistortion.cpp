@@ -41,7 +41,7 @@ Undistortion::Undistortion() {
 	fsIntrinsic.release();
 	fsDistortion.release();
 	//newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, setting->imageSize, setting->undistortion_factor);
-	newCameraMatrix = getDefaultNewCameraMatrix(intrinsic, setting->imageSize, true);
+	newCameraMatrix = getDefaultNewCameraMatrix(intrinsic, cv::Size(setting->imageSizeX,setting->imageSizeY), true);
 }
 
 /**

@@ -41,6 +41,8 @@
 using namespace std;
 using namespace cv;
 
+static Setting* setting = Setting::Instance();
+
 /** OpenCV variables **/
 CvPoint mouseLocation;
 VideoWriter sourceWriter;
@@ -72,7 +74,6 @@ CameraPGR pgrCamera;
 Undistortion undistortion;
 Message message; //used by updateMessage() and inside the main loop
 int frameCount = 0;
-static Setting* setting = Setting::Instance();
 
 int main(int argc, char* argv[]) {
 	if(!setting->loadOptions(argc, argv)) {
@@ -299,7 +300,8 @@ void start(){
 					cvtColor(currentFrame, tmpColor, CV_GRAY2RGB);
 					sourceWriter << tmpColor;
 				} else {
-					sourceWriter = VideoWriter(setting->source_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps, setting->imageSize);
+					sourceWriter = VideoWriter(setting->source_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps,
+							Size(setting->imageSizeX, setting->imageSizeY));
 				}
 			}
 		} else{
@@ -431,7 +433,8 @@ void start(){
 					resultWriter << trackingResults;
 					putText(trackingResults, "Recording Results ... ", Point(40,120), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
 				} else {
-					resultWriter = VideoWriter(setting->result_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps, setting->imageSize);
+					resultWriter = VideoWriter(setting->result_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps,
+							Size(setting->imageSizeX, setting->imageSizeY));
 				}
 			}
 
