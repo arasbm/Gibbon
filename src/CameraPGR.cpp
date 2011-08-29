@@ -25,11 +25,8 @@
 
 using namespace FlyCapture2;
 
-static Setting setting = Setting::Instance();
+static Setting* setting = Setting::Instance();
 
-CameraPGR::CameraPGR() {
-	setting.pgr_cam_index = 0;
-}
 
 CameraPGR::~CameraPGR() {
 	pgrCam.StopCapture();
@@ -46,12 +43,12 @@ void CameraPGR::init(){
 	fmt7ImageSettings.mode = MODE_0;
 	fmt7ImageSettings.offsetX = 96;
 	fmt7ImageSettings.offsetY = 60;
-	fmt7ImageSettings.width = setting.imageSize.width;
-	fmt7ImageSettings.height = setting.imageSize.height;
+	fmt7ImageSettings.width = setting->imageSizeX;
+	fmt7ImageSettings.height = setting->imageSizeY;
 	fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_MONO8;
     bool valid;
 
-    busManager.GetCameraFromIndex(setting.pgr_cam_index, &guid);
+    busManager.GetCameraFromIndex(setting->pgr_cam_index, &guid);
 	Error pgError;
 	pgError = pgrCam.Connect(&guid);
 	if (pgError != PGRERROR_OK){

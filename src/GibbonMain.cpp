@@ -71,16 +71,16 @@ CameraPGR pgrCamera;
 Undistortion undistortion;
 Message message; //used by updateMessage() and inside the main loop
 int frameCount = 0;
-static Setting setting = Setting::Instance();
+static Setting* setting = Setting::Instance();
 
 int main(int argc, char* argv[]) {
-	if(!setting.loadOptions(argc, argv)) {
+	if(!setting->loadOptions(argc, argv)) {
 		cout << "Error in loading options. Exiting the program." << endl;
 		return -1;
 	}
 	verbosePrint("Starting ... ");
 
-	if(!setting.is_daemon) {
+	if(!setting->is_daemon) {
 		cvNamedWindow( "Source", CV_WINDOW_AUTOSIZE ); 		//monochrome source
 		//cvNamedWindow( "Processed", CV_WINDOW_AUTOSIZE ); 	//monochrome image after pre-processing
 		cvNamedWindow( "Tracked", CV_WINDOW_AUTOSIZE ); 	//Color with pretty drawings showing tracking results
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
 	init();
 	start();
 
-	if(!setting.is_daemon) {
+	if(!setting->is_daemon) {
 		cvDestroyWindow( "Source" );
 		cvDestroyWindow( "Tracked" );
 
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
  * Initialize global variables
  */
 void init() {
-	if(setting.do_undistortion) {
+	if(setting->do_undistortion) {
 		undistortion = Undistortion();
 	}
 
@@ -177,7 +177,7 @@ void drawHandTrace(Mat img) {
 			int current = previousIndex(i);
 			int previous = previousIndex(i + 1);
 			if(handOne.at(current).isPresent() && handOne.at(previous).isPresent()) {
-				if(setting.left_grab_mode) {
+				if(setting->left_grab_mode) {
 					line(img, handOne.at(previous).getMinCircleCenter(), handOne.at(current).getMinCircleCenter(), ORANGE, 5, 4, 0);
 				} else {
 					line(img, handOne.at(previous).getMinCircleCenter(), handOne.at(current).getMinCircleCenter(), ORANGE, 2, 4, 0);
@@ -194,7 +194,7 @@ void drawHandTrace(Mat img) {
 			int current = previousIndex(i);
 			int previous = previousIndex(i + 1);
 			if(handTwo.at(current).isPresent() && handTwo.at(previous).isPresent()) {
-				if(setting.left_grab_mode) {
+				if(setting->left_grab_mode) {
 					line(img, handTwo.at(previous).getMinCircleCenter(), handTwo.at(current).getMinCircleCenter(), BLUE, 5, 4, 0);
 				} else {
 					line(img, handTwo.at(previous).getMinCircleCenter(), handTwo.at(current).getMinCircleCenter(), BLUE, 2, 4, 0);
@@ -216,13 +216,13 @@ void processKey(char key) {
 		case 'a':
 			break;
 		case 's':
-			setting.save_input_video = !setting.save_input_video;
+			setting->save_input_video = !setting->save_input_video;
 			break;
 		case 'r':
-			setting.save_output_video = !setting.save_output_video;
+			setting->save_output_video = !setting->save_output_video;
 			break;
 		case 'c':
-			setting.capture_snapshot = true;
+			setting->capture_snapshot = true;
 			break;
 		default:
 			break;
@@ -252,18 +252,18 @@ void start(){
 	vector<vector<cv::Point> > contours;
 	vector<Vec4i> hiearchy;
 
-	VideoCapture video(setting.input_video_path);
+	VideoCapture video(setting->input_video_path);
 	video.set(CV_CAP_PROP_FPS, 30);
 
-	if(setting.pgr_cam_index >= 0) {
+	if(setting->pgr_cam_index >= 0) {
 		pgrCamera.init();
 	} else {
 		if(!video.isOpened()) { // check if we succeeded
-			cout << "Failed to open video file: " << setting.input_video_path << endl;
+			cout << "Failed to open video file: " << setting->input_video_path << endl;
 			return;
 		}
-		if (setting.verbose)  {
-			cout << "Video path = " << setting.input_video_path << endl;
+		if (setting->verbose)  {
+			cout << "Video path = " << setting->input_video_path << endl;
 			cout << "Video fps = " << video.get(CV_CAP_PROP_FPS);
 		}
 	}
@@ -276,7 +276,7 @@ void start(){
 	Mat tmpColor;
 	Mat depthImage;
 
-	//Mat watershed_markers = cvCreateImage( setting.imageSize, IPL_DEPTH_32S, 1 );
+	//Mat watershed_markers = cvCreateImage( setting->imageSize, IPL_DEPTH_32S, 1 );
 	//Mat watershed_image;
 
 	flowCount = vector<float>(maxCorners);
@@ -286,21 +286,22 @@ void start(){
 	gettimeofday(&first_time, 0);
 	int fps = 0;
 	while(key != 'q') {
-		if(setting.pgr_cam_index >= 0){
+		if(setting->pgr_cam_index >= 0){
 			currentFrame = pgrCamera.grabImage();
 //			Mat rotatedFrame;
 //			rotateImage(&currentFrame, &rotatedFrame, 180);
 //			currentFrame = rotatedFrame;
 
-			if(setting.do_undistortion) {
+			if(setting->do_undistortion) {
 				undistortion.undistortImage(currentFrame);
 			}
-			if(setting.save_input_video) {
+			if(setting->save_input_video) {
 				if (sourceWriter.isOpened()) {
 					cvtColor(currentFrame, tmpColor, CV_GRAY2RGB);
 					sourceWriter << tmpColor;
 				} else {
-					sourceWriter = VideoWriter(setting.source_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps, setting.imageSize);
+					sourceWriter = VideoWriter(setting->source_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps,
+							Size(setting->imageSizeX,setting->imageSizeY));
 				}
 			}
 		} else{
@@ -312,7 +313,7 @@ void start(){
 		}
 		message.init();
 
-		if(!setting.is_daemon) {
+		if(!setting->is_daemon) {
 			imshow("Source", currentFrame);
 		}
 
@@ -325,7 +326,7 @@ void start(){
 			previousFrame = currentFrame;
 		}
 
-		if(!setting.is_daemon) {
+		if(!setting->is_daemon) {
 			key = cvWaitKey(10);
 			processKey(key);
 		}
@@ -334,20 +335,20 @@ void start(){
 		 * Prepare the binary image for tracking hands as the two largest blobs in the scene
 		 * */
 		binaryImg = currentFrame.clone();
-		threshold(currentFrame, binaryImg, setting.lower_threshold, 255, THRESH_BINARY);
+		threshold(currentFrame, binaryImg, setting->lower_threshold, 255, THRESH_BINARY);
 
-		if(setting.capture_snapshot) {
-			imwrite(setting.snapshot_path + "binary.png", binaryImg);
+		if(setting->capture_snapshot) {
+			imwrite(setting->snapshot_path + "binary.png", binaryImg);
 		}
 
 		//clean up the current frame from noise using median blur filter
-		medianBlur(binaryImg, binaryImg, setting.median_blur_factor);
-		if(setting.capture_snapshot) {
-			imwrite(setting.snapshot_path + "median.png", binaryImg);
+		medianBlur(binaryImg, binaryImg, setting->median_blur_factor);
+		if(setting->capture_snapshot) {
+			imwrite(setting->snapshot_path + "median.png", binaryImg);
 		}
 
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
-		if(!setting.is_daemon) {
+		if(!setting->is_daemon) {
 			imshow("Binary", binaryImg);
 			depthImage = Mat(currentFrame.size(), CV_32FC1);
 			//TODO: init depthImage with CV_32FC1
@@ -361,7 +362,7 @@ void start(){
 		findContours( binaryImg, contours, RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
 
 		//Canny(previousFrame, previousFrame, 0, 30, 3);
-		if(!setting.is_daemon) {
+		if(!setting->is_daemon) {
 			cvtColor(currentFrame, trackingResults, CV_GRAY2BGR);
 
 			if (contours.size() > 0) {
@@ -400,14 +401,14 @@ void start(){
 		}
 		updateMessage();
 
-		if(setting.capture_snapshot) {
-			imwrite(setting.snapshot_path + "source.png", currentFrame);
+		if(setting->capture_snapshot) {
+			imwrite(setting->snapshot_path + "source.png", currentFrame);
 			depthImage.convertTo(depthImage, CV_8SC3);
 			//cvtColor(depthImage, depthImage, CV_GRAY2BGR, 1);
-			imwrite(setting.snapshot_path + "depth.png", depthImage);
-			imwrite(setting.snapshot_path + "result.png", trackingResults);
+			imwrite(setting->snapshot_path + "depth.png", depthImage);
+			imwrite(setting->snapshot_path + "result.png", trackingResults);
 			putText(trackingResults, "Snapshot OK!", Point(40,120), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
-			setting.capture_snapshot = false;
+			setting->capture_snapshot = false;
 		}
 
 		//calculate and display FPS every 100 frames
@@ -421,17 +422,18 @@ void start(){
 		if(frameCount % 1000 == 0) verbosePrint(fps_str.str()); //report fps every 1000 frame on the terminal
 		putText(trackingResults, fps_str.str(), Point(5,20), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
 
-		if(!setting.is_daemon) {
-			if(setting.save_output_video){
+		if(!setting->is_daemon) {
+			if(setting->save_output_video){
 				if (resultWriter.isOpened()) {
 					resultWriter << trackingResults;
 					putText(trackingResults, "Recording Results ... ", Point(40,120), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
 				} else {
-					resultWriter = VideoWriter(setting.result_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps, setting.imageSize);
+					resultWriter = VideoWriter(setting->result_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps,
+							Size(setting->imageSizeX,setting->imageSizeY));
 				}
 			}
 
-			if(setting.save_input_video){
+			if(setting->save_input_video){
 				//actually saving is done before pre processing above
 				putText(trackingResults, "Recording Source ... ", Point(40,40), FONT_HERSHEY_COMPLEX, 1, YELLOW, 3, 8, false);
 			}
@@ -449,7 +451,7 @@ void start(){
 	currentFrame.release();
 	trackingResults.release();
 	tmpColor.release();
-	if(setting.pgr_cam_index >= 0){
+	if(setting->pgr_cam_index >= 0){
 		pgrCamera.~CameraPGR();
 	}
 }
@@ -499,7 +501,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 	}
 
 	//Detect the two largest circles that represent hands, if they exist
-	if(max1Radius > setting.radius_threshold && max2Radius > setting.radius_threshold) {
+	if(max1Radius > setting->radius_threshold && max2Radius > setting->radius_threshold) {
 		//Two hands Present
 		if(!handOnePresent && !handTwoPresent) {
 			//default: max1 is hand one
@@ -571,7 +573,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 				handOne[index()].setPresent(true);
 			}
 		}
-	} else if(max1Radius > setting.radius_threshold ){
+	} else if(max1Radius > setting->radius_threshold ){
 		if(!handOnePresent && !handTwoPresent) {
 			handOne[index()].setMinCircleCenter(max1Center);
 			handOne[index()].setMinCircleRadius(max1Radius);
@@ -580,7 +582,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 			handOne[index()].setPresent(true);
 
 		} else if(handOnePresent && !handTwoPresent) {
-			if(getDistance(handOneCenter, max1Center) < setting.radius_threshold*4) {
+			if(getDistance(handOneCenter, max1Center) < setting->radius_threshold*4) {
 				handOne[index()].setMinCircleCenter(max1Center);
 				handOne[index()].setMinCircleRadius(max1Radius);
 				handOne[index()].setContour(contours[max1ContourIndex]);
@@ -598,7 +600,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 				handOne[index()].clear();
 			}
 		} else {
-			if(getDistance(handTwoCenter, max1Center) > setting.radius_threshold*4) {
+			if(getDistance(handTwoCenter, max1Center) > setting->radius_threshold*4) {
 				handOne[index()].setMinCircleCenter(max1Center);
 				handOne[index()].setMinCircleRadius(max1Radius);
 				handOne[index()].setContour(contours[max1ContourIndex]);
@@ -622,7 +624,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 	}
 
 //	//Detect the two largest circles that represent hands, if they exist
-//	if(max1Radius > setting.radius_threshold && max2Radius > setting.radius_threshold) {
+//	if(max1Radius > setting->radius_threshold && max2Radius > setting->radius_threshold) {
 //		if(max1Center.x > max2Center.x) {
 //			//max1 is on the left
 //			handOne[index()].setMinCircleCenter(max1Center);
@@ -650,7 +652,7 @@ void findHands(vector<vector<cv::Point> > contours) {
 //			handOne[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
 //			handOne[index()].setPresent(true);
 //		}
-//	} else if(max1Radius > setting.radius_threshold ){
+//	} else if(max1Radius > setting->radius_threshold ){
 //			//Assume max1 is the left hand, since there is only one hand
 //			handOne[index()].setMinCircleCenter(max1Center);
 //			handOne[index()].setMinCircleRadius(max1Radius);

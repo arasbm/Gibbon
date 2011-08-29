@@ -25,7 +25,7 @@
 
 using namespace cv;
 
-static Setting setting = Setting::Instance();
+static Setting* setting = Setting::Instance();
 
 /**
  * Experimental

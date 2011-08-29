@@ -30,14 +30,14 @@
 
 using namespace std;
 
-static Setting setting = Setting::Instance();
+static Setting* setting = Setting::Instance();
 
 /**
  * This method prints the string if the program is running
  * in verbose mode. Otherwise nothing happens.
  * */
 bool verbosePrint(string s) {
-	if(setting.verbose) {
+	if(setting->verbose) {
 		cout << s << endl;
 		return true;
 	}

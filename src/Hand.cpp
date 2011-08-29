@@ -26,7 +26,7 @@
 
 using namespace std;
 
-Setting setting = Setting::Instance();
+Setting* setting = Setting::Instance();
 
 Hand::Hand(handSide s) {
 	static int handCount;
@@ -136,18 +136,18 @@ int Hand::handMessageID() {
 float Hand::getX() {
 //	return gestureX;
 	if( this->getFeatureMean().x == 0) {
-		return (setting.imageSize.width - this->getMinCircleCenter().x) / setting.imageSize.width;
+		return (setting->imageSizeX - this->getMinCircleCenter().x) / setting->imageSizeX;
 	} else {
-		//return (setting.imageSize.width - this->getFeatureMean().x) / setting.imageSize.width;
+		//return (setting->imageSize.width - this->getFeatureMean().x) / setting->imageSize.width;
 		float alpha = 0.5f;
 		static float oldX = -1;
 
-		float x = (setting.imageSize.width - this->getFeatureMean().x) / setting.imageSize.width;
+		float x = (setting->imageSizeX - this->getFeatureMean().x) / setting->imageSizeX;
 
 		if(oldX != -1)
 		{
 			//TODO: don't use magic number
-			alpha = fabs(x - oldX) / setting.imageSize.width * 2500.f;
+			alpha = fabs(x - oldX) / setting->imageSizeX * 2500.0f;
 			alpha = min(1.0f, alpha);
 			x =  alpha*x + (1-alpha)*oldX;
 		}
@@ -169,18 +169,18 @@ float Hand::getY() {
 //	return gestureY;
 	if(this->getFeatureMean().y == 0) {
 		//if there are no features use min circle center
-		return this->getMinCircleCenter().y / setting.imageSize.height;
+		return this->getMinCircleCenter().y / setting->imageSizeY;
 	} else {
-//		return this->getFeatureMean().y / setting.imageSize.height;
+//		return this->getFeatureMean().y / setting->imageSizeY;
 		float alpha = 0.5f;
 		static float oldY = -1;
 
-		float y = this->getFeatureMean().y / setting.imageSize.height;
+		float y = this->getFeatureMean().y / setting->imageSizeY;
 
 		if(oldY != -1)
 		{
 			//TODO: don't use magic number
-			alpha = fabs(y - oldY) / setting.imageSize.height * 2500.f;
+			alpha = fabs(y - oldY) / setting->imageSizeY * 2500.f;
 			alpha = min(1.0f, alpha);
 			y = alpha*y + (1-alpha)*oldY;
 		}

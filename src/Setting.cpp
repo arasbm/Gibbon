@@ -57,7 +57,10 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		   ("radius-threshold", po::value<int>(&radius_threshold)->default_value(20), "Set the lower threshold")
 		   ("median-blur-factor", po::value<int>(&median_blur_factor)->default_value(7), "set the median blur factor for contour detection")
 		   ("do-undistortion", po::value<bool>(&do_undistortion), "If true, camera image will be corrected for lens distortion")
-
+		   ("imageOffsetX", po::value<float>(&imageOffsetX)->default_value(0), "x offset of image ROI")
+		   ("imageOffsetY", po::value<float>(&imageOffsetY)->default_value(0), "y offset of image ROI")
+		   ("imageSizeX", po::value<float>(&imageSizeX)->default_value(752), "width of image ROI")
+		   ("imageSizeY", po::value<float>(&imageSizeY)->default_value(480), "height of image ROI")
 		   //("", po::value<std::string>(&),"")
 		   ;
 

@@ -46,9 +46,9 @@ const cv::Scalar RANDOM_COLOR = CV_RGB( rand()&255, rand()&255, rand()&255 ); //
 class Setting {
 
 public:
-	static Setting& Instance(){
+	static Setting* Instance(){
 	    static Setting singleton;
-	    return singleton;
+	    return &singleton;
 	}
 
     bool loadOptions(int argc, char* argv[]);
@@ -83,7 +83,10 @@ public:
 
 	/*** pgr camera serrings ***/
 	int pgr_cam_index;
-	cv::Size imageSize; //size of the image after RIO selection
+	float imageOffsetX;
+	float imageOffsetY;//offset of image ROI
+	float imageSizeX;
+	float imageSizeY; //size of the image after ROI selection
 
 private:
 	Setting() {
@@ -118,7 +121,6 @@ private:
 
 		/*** pgr camera serrings ***/
 		pgr_cam_index = 0;
-		imageSize = cv::Size(580, 384); //size of the image after RIO selection
 	};// Private constructor
 
 	//Setting(const Setting&);                 // Prevent copy-construction

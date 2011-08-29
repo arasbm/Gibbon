@@ -33,7 +33,6 @@ using namespace FlyCapture2;
 class CameraPGR : public ImageProvider {
 
 public:
-	CameraPGR();
 	cv::Mat grabImage();
 	void init();
 	~CameraPGR();
