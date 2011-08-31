@@ -81,12 +81,19 @@ public:
 	bool right_grab_mode;
 	bool capture_snapshot; //capture and save an snapshot of all the important images
 
-	/*** pgr camera serrings ***/
+	/*** pgr camera settings ***/
 	int pgr_cam_index;
-	float imageOffsetX;
-	float imageOffsetY;//offset of image ROI
-	float imageSizeX;
-	float imageSizeY; //size of the image after ROI selection
+	int pgr_cam_max_width;
+	int pgr_cam_max_height;
+	float imageOffsetX; //offset of image ROI
+	float imageOffsetY;
+	float imageSizeX; //size of the image after ROI selection
+	float imageSizeY;
+
+	/*** undistortion calibration camera settings ***/
+	int undistortion_calibration_numChessboards;
+	int undistortion_calibration_hCorners;
+	int undistortion_calibration_vCorners;
 
 private:
 	Setting() {
@@ -112,7 +119,7 @@ private:
 		tuio_port = 3333;
 		tuio_host = "localhost";
 		do_undistortion = true;
-		undistortion_factor = 0.1;
+		undistortion_factor = 0.35;
 
 
 		/*** modes ***/
@@ -121,6 +128,8 @@ private:
 
 		/*** pgr camera serrings ***/
 		pgr_cam_index = 0;
+		pgr_cam_max_width = 752;
+		pgr_cam_max_height = 480;
 	};// Private constructor
 
 	//Setting(const Setting&);                 // Prevent copy-construction

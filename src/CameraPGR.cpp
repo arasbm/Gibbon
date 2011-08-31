@@ -22,11 +22,12 @@
 #include "CameraPGR.h"
 #include "FlyCapture2.h"
 #include "Setting.h"
+#include "Undistortion.h"
 
 using namespace FlyCapture2;
 
 static Setting* setting = Setting::Instance();
-
+Undistortion undistortion;
 
 CameraPGR::~CameraPGR() {
 	pgrCam.StopCapture();
@@ -37,14 +38,18 @@ CameraPGR::~CameraPGR() {
  * Initialize a PGR camera with format 7 settings
  * */
 void CameraPGR::init(){
+	//if undistortion on, initialize undistortion
+	if(setting->do_undistortion) {
+		undistortion = Undistortion();
+	}
 	//Starts the camera.
 	busManager.GetNumOfCameras(&totalCameras);
 	printf("Found %d cameras on the bus.\n",totalCameras);
 	fmt7ImageSettings.mode = MODE_0;
-	fmt7ImageSettings.offsetX = 96;
-	fmt7ImageSettings.offsetY = 60;
-	fmt7ImageSettings.width = setting->imageSizeX;
-	fmt7ImageSettings.height = setting->imageSizeY;
+	fmt7ImageSettings.offsetX = 0;
+	fmt7ImageSettings.offsetY = 0;
+	fmt7ImageSettings.width = setting->pgr_cam_max_width;
+	fmt7ImageSettings.height = setting->pgr_cam_max_height;
 	fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_MONO8;
     bool valid;
 
@@ -103,7 +108,17 @@ cv::Mat CameraPGR::grabImage(){
 
 	//convert to opencv IplImage > undistort > convert to Mat
 	cv::Mat image(convertImageToOpenCV(&rawImage));
+	if(setting->do_undistortion) {
+		undistortion.undistortImage(&image);
+	}
+	image = image(cv::Rect(setting->imageOffsetX, setting->imageOffsetY, setting->imageSizeX, setting->imageSizeY));
+
 	return image;
+}
+
+void CameraPGR::calibrateUndistortion() {
+	undistortion.calibrateUndistortion(this);
+	undistortion = Undistortion();
 }
 
 /**

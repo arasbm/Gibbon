@@ -61,6 +61,9 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		   ("imageOffsetY", po::value<float>(&imageOffsetY)->default_value(0), "y offset of image ROI")
 		   ("imageSizeX", po::value<float>(&imageSizeX)->default_value(752), "width of image ROI")
 		   ("imageSizeY", po::value<float>(&imageSizeY)->default_value(480), "height of image ROI")
+		   ("undistortion-calibration-numChessboards", po::value<int>(&undistortion_calibration_numChessboards)->default_value(2), "number of chess boards to use for undistortion calibration")
+		   ("undistortion-calibration-hCorners", po::value<int>(&undistortion_calibration_hCorners)->default_value(6), "number of horizontal inside corners in chess board image used for undistortion calibration")
+		   ("undistortion-calibration-vCorners", po::value<int>(&undistortion_calibration_vCorners)->default_value(6), "number of vertical inside corners in chess board image used for undistortion calibration")
 		   //("", po::value<std::string>(&),"")
 		   ;
 

@@ -22,25 +22,23 @@
 #ifndef UNDISTORTION_H_
 #define UNDISTORTION_H_
 
-#include "cv.h"
-#include "cxcore.h"
-#include "ml.h"
-
-using namespace cv;
+#include "CameraPGR.h"
 
 class Undistortion {
 
 public:
 	Undistortion();
-	void undistortImage(Mat image);
+	void undistortImage(cv::Mat* image);
+	void calibrateUndistortion(CameraPGR* cam);
 
 private:
-	Mat mapx;
-	Mat mapy;
-	Mat intrinsic;
-	Mat distortion;
-	Mat newCameraMatrix;
+	cv::Mat mapx;
+	cv::Mat mapy;
+	cv::Mat intrinsic;
+	cv::Mat distortion;
+	cv::Mat newCameraMatrix;
 
+	void saveCalibrationData(cv::Mat intrinsic, cv::Mat distortion, float offsetX, float offsetY, float sizeX, float sizeY);
 };
 
 #endif /* UNDISTORTION_H_ */

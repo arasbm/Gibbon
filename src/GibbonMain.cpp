@@ -35,7 +35,6 @@
 #include "Log.h"
 #include "Hand.h"
 #include "Message.h"
-#include "Undistortion.h"
 #include "ImageUtils.h"
 
 using namespace std;
@@ -68,7 +67,6 @@ int blockSize = 24;
 bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
-Undistortion undistortion;
 Message message; //used by updateMessage() and inside the main loop
 int frameCount = 0;
 static Setting* setting = Setting::Instance();
@@ -104,10 +102,7 @@ int main(int argc, char* argv[]) {
  * Initialize global variables
  */
 void init() {
-	if(setting->do_undistortion) {
-		undistortion = Undistortion();
-	}
-
+	//Do nothing for now
 }
 
 /**
@@ -224,6 +219,13 @@ void processKey(char key) {
 		case 'c':
 			setting->capture_snapshot = true;
 			break;
+		case 'u':
+			cvDestroyWindow("Source");
+			cvDestroyWindow("Tracked");
+			cvDestroyWindow("Binary");
+			cvDestroyWindow("Depth");
+			pgrCamera.calibrateUndistortion();
+			break;
 		default:
 			break;
 	}
@@ -234,12 +236,15 @@ void processKey(char key) {
  * result is stored in global data structure
  */
 void findGoodFeatures(Mat frame1, Mat frame2) {
-	goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, frame1, blockSize, useHarrisDetector);
-	//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
-	calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), 1, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
-//	for(int i = 0; i < flowError.size(); i++) {
-//		cout << "err " << i << " : " << flowError[i] << endl;
-//	}
+
+	if(frame1.cols == frame2.cols && frame1.rows == frame2.rows) { //ensure frames were not resizedq
+		goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, frame1, blockSize, useHarrisDetector);
+		//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
+		calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), 1, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
+	//	for(int i = 0; i < flowError.size(); i++) {
+	//		cout << "err " << i << " : " << flowError[i] << endl;
+	//	}
+	}
 }
 
 /**
@@ -292,9 +297,6 @@ void start(){
 //			rotateImage(&currentFrame, &rotatedFrame, 180);
 //			currentFrame = rotatedFrame;
 
-			if(setting->do_undistortion) {
-				undistortion.undistortImage(currentFrame);
-			}
 			if(setting->save_input_video) {
 				if (sourceWriter.isOpened()) {
 					cvtColor(currentFrame, tmpColor, CV_GRAY2RGB);
@@ -335,7 +337,7 @@ void start(){
 		 * Prepare the binary image for tracking hands as the two largest blobs in the scene
 		 * */
 		binaryImg = currentFrame.clone();
-		threshold(currentFrame, binaryImg, setting->lower_threshold, 255, THRESH_BINARY);
+		threshold(currentFrame, binaryImg, setting->lower_threshold, setting->upper_threshold, THRESH_BINARY);
 
 		if(setting->capture_snapshot) {
 			imwrite(setting->snapshot_path + "binary.png", binaryImg);
@@ -353,7 +355,7 @@ void start(){
 			depthImage = Mat(currentFrame.size(), CV_32FC1);
 			//TODO: init depthImage with CV_32FC1
 			depthFromDiffusion(currentFrame, depthImage);
-			imshow("depth", depthImage);
+			imshow("Depth", depthImage);
 		}
 
 		//findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
