@@ -236,7 +236,7 @@ void Undistortion::calibrationLoop(CameraPGR* cam) {
 
 		switch(key) {
 
-		case 'r':
+		case 'b':
 			//set roi bounds
 			if((windowBottomRight.x - windowTopLeft.x) > 0 &&
 					(windowBottomRight.y - windowTopLeft.y) > 0) {
@@ -258,8 +258,8 @@ void Undistortion::calibrationLoop(CameraPGR* cam) {
 			}
 			break;
 
-		case 'x':
-			//reset roi clipping
+		case 'r':
+			//reset roi bounds
 			offsetX = 0;
 			offsetY = 0;
 			sizeX = setting->imageSizeX;
@@ -292,7 +292,7 @@ void Undistortion::calibrationLoop(CameraPGR* cam) {
 			break;
 
 		case 's':
-			//save settings and quit
+			//save settings and exit calibration mode
 			saveCalibrationData(intrinsic, distortion, offsetX, offsetY, sizeX, sizeY);
 			settings_saved = true;
 			printf("<<Matrix/ROI Data Saved>>\n\n");
@@ -300,8 +300,8 @@ void Undistortion::calibrationLoop(CameraPGR* cam) {
 			cvDestroyWindow("Undistorted/Cropped Image");
 			return;
 
-		case 'q':
-			//quit calibration
+		case 'x':
+			//exit calibration mode without saving
 
 			if(!settings_saved) {
 				//revert altered settings
@@ -315,6 +315,13 @@ void Undistortion::calibrationLoop(CameraPGR* cam) {
 			cvDestroyWindow("Original Image");
 			cvDestroyWindow("Undistorted/Cropped Image");
 			return;
+
+
+		case 'q':
+			cvDestroyWindow("Original Image");
+			cvDestroyWindow("Undistorted/Cropped Image");
+			cam->~CameraPGR();
+			exit(0);;
 		}
 	}
 }
@@ -394,12 +401,20 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 				printf("<<Restarting Calibration>>\n\n");
 				break;
 
-			case 'q':
-				//quit calibration
+			case 'x':
+				//exit calibration
 				cvDestroyWindow("Camera");
 				cvDestroyWindow("Detected Corners");
 				cvDestroyWindow("Captured Corners");
 				return;
+
+			case 'q':
+				//quit program
+				cvDestroyWindow("Camera");
+				cvDestroyWindow("Detected Corners");
+				cvDestroyWindow("Captured Corners");
+				cam->~CameraPGR();
+				exit(0);
 			}
 		}
 
