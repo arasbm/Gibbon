@@ -116,8 +116,8 @@ cv::Mat CameraPGR::grabImage(){
 	return image;
 }
 
-void CameraPGR::calibrateUndistortion() {
-	undistortion.calibrateUndistortion(this);
+void CameraPGR::calibrateUndistortionROI() {
+	undistortion.calibrationLoop(this);
 	undistortion = Undistortion();
 }
 

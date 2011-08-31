@@ -145,6 +145,7 @@ void Undistortion::saveCalibrationData(Mat intrinsic, Mat distortion, float offs
 		exit(-1);
 	}
 
+	//write changes to conf file
 	const int maxLineSize = 256;
 	char buff [maxLineSize];
 
@@ -189,7 +190,7 @@ void Undistortion::saveCalibrationData(Mat intrinsic, Mat distortion, float offs
 	}
 }
 
-void Undistortion::calibrateUndistortion(CameraPGR* cam) {
+void Undistortion::calibrationLoop(CameraPGR* cam) {
 
 	bool original_do_undistortion = setting->do_undistortion;
 	float original_imageOffsetX = setting->imageOffsetX;
@@ -202,6 +203,123 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 	setting->imageOffsetY = 0;
 	setting->imageSizeX = setting->pgr_cam_max_width;
 	setting->imageSizeY = setting->pgr_cam_max_height;
+
+	Mat image;
+	Mat imageUndistorted;
+
+	cvNamedWindow("Undistorted/Cropped Image", CV_WINDOW_AUTOSIZE);
+	cvSetMouseCallback("Undistorted/Cropped Image", on_mouse);
+
+	float offsetX = original_imageOffsetX;
+	float offsetY = original_imageOffsetY;
+	float sizeX = original_imageSizeX;
+	float sizeY = original_imageSizeY;
+
+	newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion,
+			Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), setting->undistortion_factor);
+
+	for(;;) {
+
+		bool settings_saved = false;
+
+		image = cam->grabImage();
+		undistort(image, imageUndistorted, intrinsic, distortion, newCameraMatrix);
+
+		Rect cropPreviewRect = Rect(offsetX, offsetY, sizeX, sizeY);
+		Mat cropPreview = imageUndistorted(cropPreviewRect);
+		rectangle(cropPreview, windowTopLeft, windowBottomRight, ORANGE, 3);
+
+		imshow("Original Image", image);
+		imshow("Undistorted/Cropped Image", cropPreview);
+
+		char key = waitKey(1);
+
+		switch(key) {
+
+		case 'r':
+			//set roi bounds
+			if((windowBottomRight.x - windowTopLeft.x) > 0 &&
+					(windowBottomRight.y - windowTopLeft.y) > 0) {
+				//only set if cropping window is valid
+				offsetX += windowTopLeft.x;
+				offsetY += windowTopLeft.y;
+				sizeX = windowBottomRight.x - windowTopLeft.x;
+				sizeY = windowBottomRight.y - windowTopLeft.y;
+
+				//reset cropping box
+				windowTopLeft.x = -1;
+				windowTopLeft.y = -1;
+				windowBottomRight.x = -1;
+				windowBottomRight.y = -1;
+				printf("<<Window Resized>>\n\n");
+
+				//sending this mouse event resets resizing window
+				on_mouse( CV_EVENT_LBUTTONUP, -1, -1, 0, NULL);
+			}
+			break;
+
+		case 'x':
+			//reset roi clipping
+			offsetX = 0;
+			offsetY = 0;
+			sizeX = setting->imageSizeX;
+			sizeY = setting->imageSizeY;
+			windowTopLeft.x = -1;
+			windowTopLeft.y = -1;
+			windowBottomRight.x = -1;
+			windowBottomRight.y = -1;
+			printf("<<Window Size Reset>>\n\n");
+
+			//sending this mouse event resets resizing window
+			on_mouse( CV_EVENT_LBUTTONUP, -1, -1, 0, NULL);
+			break;
+
+		case 'u':
+			//calibrate undistortion
+
+			//remove existing windows
+			cvDestroyWindow("Original Image");
+			cvDestroyWindow("Undistorted/Cropped Image");
+			//reset cropping box
+			windowTopLeft.x = -1;
+			windowTopLeft.y = -1;
+			windowBottomRight.x = -1;
+			windowBottomRight.y = -1;
+
+			calibrateUndistortion(cam);
+			cvNamedWindow("Undistorted/Cropped Image", CV_WINDOW_AUTOSIZE);
+			cvSetMouseCallback("Undistorted/Cropped Image", on_mouse);
+			break;
+
+		case 's':
+			//save settings and quit
+			saveCalibrationData(intrinsic, distortion, offsetX, offsetY, sizeX, sizeY);
+			settings_saved = true;
+			printf("<<Matrix/ROI Data Saved>>\n\n");
+			cvDestroyWindow("Original Image");
+			cvDestroyWindow("Undistorted/Cropped Image");
+			return;
+
+		case 'q':
+			//quit calibration
+
+			if(!settings_saved) {
+				//revert altered settings
+				setting->do_undistortion = original_do_undistortion;
+				setting->imageOffsetX = original_imageOffsetX;
+				setting->imageOffsetY = original_imageOffsetY;
+				setting->imageSizeX = original_imageSizeX;
+				setting->imageSizeY = original_imageSizeY;
+			}
+
+			cvDestroyWindow("Original Image");
+			cvDestroyWindow("Undistorted/Cropped Image");
+			return;
+		}
+	}
+}
+
+void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 
 	while(true) {
 		int numBoards = 6;
@@ -231,7 +349,7 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 			obj.push_back(Point3f(i/numCornersH, i%numCornersH, 0.0f));
 		}
 
-		printf("\n<<Begin Calibration>>\n\n");
+		printf("<<Begin Calibration>>\n\n");
 
 		while(successes < numBoards) {
 			corners_image = (const Scalar) 0;
@@ -247,7 +365,6 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 			imshow("Camera", image);
 			imshow("Detected Corners", corners_image);
 
-			image = (const Scalar) 0;
 			image = cam->grabImage();
 
 			char key = waitKey(20);
@@ -274,7 +391,7 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 				image_points.clear();
 				object_points.clear();
 				cvDestroyWindow("Captured Corners");
-				printf("\n<<Restarting Calibration>>\n\n");
+				printf("<<Restarting Calibration>>\n\n");
 				break;
 
 			case 'q':
@@ -282,12 +399,6 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 				cvDestroyWindow("Camera");
 				cvDestroyWindow("Detected Corners");
 				cvDestroyWindow("Captured Corners");
-				//revert altered settings
-				setting->do_undistortion = original_do_undistortion;
-				setting->imageOffsetX = original_imageOffsetX;
-				setting->imageOffsetY = original_imageOffsetY;
-				setting->imageSizeX = original_imageSizeX;
-				setting->imageSizeY = original_imageSizeY;
 				return;
 			}
 		}
@@ -304,111 +415,7 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 		intrinsic.ptr<float>(1)[1] = 1;
 		calibrateCamera(object_points, image_points, image.size(), intrinsic, distortion, rvecs, tvecs);
 
-		printf("\n<<Calibration Complete>>\n\n");
-
-		Mat imageUndistorted;
-
-		bool exitLoop = false;
-
-		cvNamedWindow("Undistorted/Cropped Image", CV_WINDOW_AUTOSIZE);
-		cvSetMouseCallback("Undistorted/Cropped Image", on_mouse);
-
-		float offsetX = 0;
-		float offsetY = 0;
-		float sizeX = setting->imageSizeX;
-		float sizeY = setting->imageSizeY;
-
-		newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion,
-				Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), setting->undistortion_factor);
-
-		while(exitLoop == false) {
-
-			bool settings_saved = false;
-
-			image = cam->grabImage();
-			undistort(image, imageUndistorted, intrinsic, distortion, newCameraMatrix);
-
-			Rect cropPreviewRect = Rect(offsetX, offsetY, sizeX, sizeY);
-			Mat cropPreview = imageUndistorted(cropPreviewRect);
-			rectangle(cropPreview, windowTopLeft, windowBottomRight, ORANGE, 3);
-
-			imshow("Original Image", image);
-			imshow("Undistorted/Cropped Image", cropPreview);
-
-			char key = waitKey(1);
-
-			switch(key) {
-
-			case 'c':
-				//set cropping bounds
-				if((windowBottomRight.x - windowTopLeft.x) > 0 &&
-						(windowBottomRight.y - windowTopLeft.y) > 0) {
-					//only set if cropping window is valid
-					offsetX += windowTopLeft.x;
-					offsetY += windowTopLeft.y;
-					sizeX = windowBottomRight.x - windowTopLeft.x;
-					sizeY = windowBottomRight.y - windowTopLeft.y;
-
-					windowTopLeft.x = -1;
-					windowTopLeft.y = -1;
-					windowBottomRight.x = -1;
-					windowBottomRight.y = -1;
-					printf("<<Window Resized>>\n\n");
-
-					//sending this mouse event resets resizing window
-					on_mouse( CV_EVENT_LBUTTONUP, -1, -1, 0, NULL);
-				}
-				break;
-
-			case 'x':
-				offsetX = 0;
-				offsetY = 0;
-				sizeX = setting->imageSizeX;
-				sizeY = setting->imageSizeY;
-				windowTopLeft.x = -1;
-				windowTopLeft.y = -1;
-				windowBottomRight.x = -1;
-				windowBottomRight.y = -1;
-				printf("<<Window Size Reset>>\n\n");
-
-				//sending this mouse event resets resizing window
-				on_mouse( CV_EVENT_LBUTTONUP, -1, -1, 0, NULL);
-				break;
-
-			case 's':
-				//save settings and quit
-				saveCalibrationData(intrinsic, distortion, offsetX, offsetY, sizeX, sizeY);
-				settings_saved = true;
-				printf("<<Matrix/ROI Data Saved>>\n\n");
-				cvDestroyWindow("Original Image");
-				cvDestroyWindow("Undistorted/Cropped Image");
-				return;
-
-			case 'r':
-				//recalibrate
-				exitLoop = true;
-				cvDestroyWindow("Original Image");
-				cvDestroyWindow("Undistorted/Cropped Image");
-				printf("<<Recalibrating>>\n\n");
-				break;
-
-			case 'q':
-				//quit calibration
-
-				if(!settings_saved) {
-					//revert altered settings
-					setting->do_undistortion = original_do_undistortion;
-					setting->imageOffsetX = original_imageOffsetX;
-					setting->imageOffsetY = original_imageOffsetY;
-					setting->imageSizeX = original_imageSizeX;
-					setting->imageSizeY = original_imageSizeY;
-				}
-
-				cvDestroyWindow("Original Image");
-				cvDestroyWindow("Undistorted/Cropped Image");
-				return;
-			}
-		}
+		printf("<<Calibration Complete>>\n\n");
 	}
 }
 

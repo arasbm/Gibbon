@@ -63,7 +63,7 @@ double derivLambda = 0.5; //proportion for impact of "image intensity" as oppose
 int maxCorners = 32;
 double qualityLevel = 0.01;
 double minDistance = 0;
-int blockSize = 24;
+int blockSize = 12;
 bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
@@ -224,7 +224,7 @@ void processKey(char key) {
 			cvDestroyWindow("Tracked");
 			cvDestroyWindow("Binary");
 			cvDestroyWindow("Depth");
-			pgrCamera.calibrateUndistortion();
+			pgrCamera.calibrateUndistortionROI();
 			break;
 		default:
 			break;

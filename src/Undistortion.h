@@ -29,7 +29,7 @@ class Undistortion {
 public:
 	Undistortion();
 	void undistortImage(cv::Mat* image);
-	void calibrateUndistortion(CameraPGR* cam);
+	void calibrationLoop(CameraPGR* cam);
 
 private:
 	cv::Mat mapx;
@@ -38,6 +38,7 @@ private:
 	cv::Mat distortion;
 	cv::Mat newCameraMatrix;
 
+	void calibrateUndistortion(CameraPGR* cam);
 	void saveCalibrationData(cv::Mat intrinsic, cv::Mat distortion, float offsetX, float offsetY, float sizeX, float sizeY);
 };
 
