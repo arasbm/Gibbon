@@ -190,7 +190,10 @@ void Undistortion::saveCalibrationData(Mat intrinsic, Mat distortion, float offs
 	}
 }
 
-void Undistortion::calibrationLoop(CameraPGR* cam) {
+void Undistortion::settingsLoop(CameraPGR* cam) {
+
+	//print out key functions
+	printKeysSettings();
 
 	bool original_do_undistortion = setting->do_undistortion;
 	float original_imageOffsetX = setting->imageOffsetX;
@@ -289,6 +292,7 @@ void Undistortion::calibrationLoop(CameraPGR* cam) {
 			calibrateUndistortion(cam);
 			cvNamedWindow("Undistorted/Cropped Image", CV_WINDOW_AUTOSIZE);
 			cvSetMouseCallback("Undistorted/Cropped Image", on_mouse);
+			printKeysSettings();
 			break;
 
 		case 's':
@@ -321,14 +325,21 @@ void Undistortion::calibrationLoop(CameraPGR* cam) {
 			cvDestroyWindow("Original Image");
 			cvDestroyWindow("Undistorted/Cropped Image");
 			cam->~CameraPGR();
-			exit(0);;
+			exit(0);
+
+		case 'h':
+			printKeysSettings();
+			break;
 		}
 	}
 }
 
 void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 
-	while(true) {
+	//print out key functions
+	printKeysCalibration();
+
+	for(;;) {
 		int numBoards = 6;
 		int numCornersH = 8;
 		int numCornersV = 6;
@@ -415,6 +426,10 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 				cvDestroyWindow("Captured Corners");
 				cam->~CameraPGR();
 				exit(0);
+
+			case 'h':
+				printKeysCalibration();
+				break;
 			}
 		}
 
@@ -434,3 +449,23 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 	}
 }
 
+void Undistortion::printKeysSettings() {
+	cout << "SETTINGS MODE" << endl
+		<< "'left mouse' - select new ROI bounds in \"Undistorted/Cropped Image\" window" << endl
+		<< "'b' - set ROI Bounds to current selection" << endl
+		<< "'r' - Reset ROI bounds" << endl
+		<< "'u' - calibrate Undistortion" << endl
+		<< "'s' - Save settings and exit" << endl
+		<< "'x' - eXit without saving" << endl
+		<< "'q' - Quit application" << endl
+		<< "'h' - print this message" << endl << endl;
+}
+
+void Undistortion::printKeysCalibration() {
+	cout << "CALIBRATION MODE" << endl
+		<< "'spacebar' - capture current corners" << endl
+		<< "'r' - Restart calibration" << endl
+		<< "'x' - eXit calibration" << endl
+		<< "'q' - Quit application" << endl
+		<< "'h' - print this message" << endl << endl;
+}

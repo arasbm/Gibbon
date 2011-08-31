@@ -85,6 +85,9 @@ int main(int argc, char* argv[]) {
 	}
 	// Mat colorImg; //color image for connected component labelling
 
+	//print out key functions
+	printKeys();
+
 	init();
 	start();
 
@@ -225,6 +228,10 @@ void processKey(char key) {
 			cvDestroyWindow("Binary");
 			cvDestroyWindow("Depth");
 			pgrCamera.calibrateUndistortionROI();
+			printKeys();
+			break;
+		case 'h':
+			printKeys();
 			break;
 		default:
 			break;
@@ -819,21 +826,6 @@ void meanAndStdDevExtract() {
 }
 
 /**
- * Rotate specified image by specified angle in degrees
- */
-void rotateImage(Mat* src, Mat* dst, float degrees)
-{
-	   /// Compute a rotation matrix with respect to the center of the image
-	   Point center = Point(src->cols/2, src->rows/2);
-
-	   /// Get the rotation matrix with the specifications above
-	   Mat rot_mat = getRotationMatrix2D(center, degrees, 1.0f);
-
-	   /// Rotate the warped image
-	   warpAffine(*src, *dst, rot_mat, src->size());
-}
-
-/**
  * Calculate the depth of each feature based on the blurriness of its window
  * TODO: complete this function using minEigenValue calculation
  */
@@ -856,4 +848,14 @@ void featureDepthExtract(const Mat img) {
 //			featureDepth.push_back(-1);
 //		}
 //	}
+}
+
+void printKeys() {
+	cout << "TRACKING MODE" << endl
+		<< "'s' - toggle save input video" << endl
+		<< "'r' - toggle save output video" << endl
+		<< "'c' - capture snapshot" << endl
+		<< "'u' - enter undistortion/roi settings mode" << endl
+		<< "'q' - quit application" << endl
+		<< "'h' - print this message" << endl << endl;
 }

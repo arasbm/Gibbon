@@ -25,6 +25,7 @@
 #include "cv.h"
 
 void depthFromDiffusion(cv::Mat sourceImg, cv::Mat depthImg);
+void rotateImage(cv::Mat* src, cv::Mat* dst, float degrees);
 
 
 #endif /* IMAGEUTILS_H_ */
