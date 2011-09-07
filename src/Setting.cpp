@@ -28,6 +28,8 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/tokenizer.hpp>
 
+#define GIBBON_VERSION "0.1"
+
 namespace po = boost::program_options;
 
 /**
@@ -93,7 +95,8 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		}
 
 		if (verbose) {
-			cout 	<< "Verbose mode. :-) I am going to tell you what's happening ...\n"
+			cout 	<< "Gibbon version " << GIBBON_VERSION
+					<< "Verbose mode. :-) I am going to tell you what's happening ...\n"
 					<< "\n****************** Configurations: ******************"
 					<< "\nsend tuio	= " << send_tuio
 					<< "\ntuio_port = " << tuio_port
