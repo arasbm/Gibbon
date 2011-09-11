@@ -53,17 +53,17 @@ vector<Hand> handTwo(hand_window_size, Hand(RIGHT_HAND)); //circular: see index(
 /** goodFeaturesToTrack structure and settings **/
 vector<Point2f> previousCorners;
 vector<Point2f> currentCorners; //Centre point of feature or corner rectangles
+vector<float> featureDepth; //depth of current corners as calculated by featureDepthExtract function
 vector<uchar> flowStatus; //set to 1 if the flow for the corresponding features has been found, 0 otherwise
 vector<float> flowCount; //number of times the flow of this feature has been detected
-vector<float> featureDepth;
 //vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
 vector<float> flowError;
 TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
-double derivLambda = 0.5; //proportion for impact of "image intensity" as opposed to "derivatives"
-int maxCorners = 32;
-double qualityLevel = 0.01;
-double minDistance = 0;
-int blockSize = 12;
+double derivLambda = 0; //proportion for impact of "image intensity" as opposed to "derivatives"
+int maxCorners = 12;
+double qualityLevel = 0.01;//0.01;
+double minDistance = 10;
+int blockSize = 16;
 bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
@@ -226,7 +226,7 @@ void processKey(char key) {
 			cvDestroyWindow("Source");
 			cvDestroyWindow("Tracked");
 			cvDestroyWindow("Binary");
-			cvDestroyWindow("Depth");
+			cvDestroyWindow("Touch");
 			pgrCamera.calibrateUndistortionROI();
 			printKeys();
 			break;
@@ -245,9 +245,10 @@ void processKey(char key) {
 void findGoodFeatures(Mat frame1, Mat frame2) {
 
 	if(frame1.cols == frame2.cols && frame1.rows == frame2.rows) { //ensure frames were not resizedq
-		goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, frame1, blockSize, useHarrisDetector);
+		goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, Mat(), blockSize, useHarrisDetector);
 		//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
-		calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), 1, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
+		int maxLevel = 0; // 0-based maximal pyramid level number. If 0, pyramids are not used (single level), if 1, two levels are used etc.
+		calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), 0, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
 	//	for(int i = 0; i < flowError.size(); i++) {
 	//		cout << "err " << i << " : " << flowError[i] << endl;
 	//	}
@@ -286,7 +287,7 @@ void start(){
 	Mat trackingResults;
 	Mat binaryImg; //binary image for finding contours of the hand
 	Mat tmpColor;
-	Mat depthImage;
+	Mat touchImage;
 
 	//Mat watershed_markers = cvCreateImage( setting->imageSize, IPL_DEPTH_32S, 1 );
 	//Mat watershed_image;
@@ -359,10 +360,9 @@ void start(){
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
 		if(!setting->is_daemon) {
 			imshow("Binary", binaryImg);
-			depthImage = Mat(currentFrame.size(), CV_32FC1);
-			//TODO: init depthImage with CV_32FC1
-			depthFromDiffusion(currentFrame, depthImage);
-			imshow("Depth", depthImage);
+			touchImage = Mat(currentFrame.size(), CV_32FC1);
+			sharpnessImage(currentFrame, touchImage);
+			imshow("Touch", touchImage);
 		}
 
 		//findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
@@ -388,16 +388,16 @@ void start(){
 		//imshow("Watershed before", watershed_markers);
 		//watershed_image = cvCreateMat(currentFrame.rows, currentFrame.cols, CV_8UC3 );
 		//cvtColor(currentFrame, watershed_image, CV_GRAY2BGR);
-		//watershed(watershed_image, depthImage);
-		//imshow("Watershed", depthImage);
+		//watershed(watershed_image, touchImage);
+		//imshow("Watershed", touchImage);
 
 		findHands(contours);
 
 		if(numberOfHands() > 0) {
 			findGoodFeatures(previousFrame, currentFrame);
+			featureDepthExtract(touchImage);
 			drawHandTrace(trackingResults);
 			assignFeaturesToHands();
-			//featureDepthExtract(trackingResults);
 			//imshow("test", handOne[index()].getContour());
 			drawFeatures(trackingResults);
 			//TODO: drawFeatureDepth(trackingResults);
@@ -412,9 +412,9 @@ void start(){
 
 		if(setting->capture_snapshot) {
 			imwrite(setting->snapshot_path + "source.png", currentFrame);
-			depthImage.convertTo(depthImage, CV_8SC3);
-			//cvtColor(depthImage, depthImage, CV_GRAY2BGR, 1);
-			imwrite(setting->snapshot_path + "depth.png", depthImage);
+			touchImage.convertTo(touchImage, CV_8SC3);
+			//cvtColor(touchImage, touchImage, CV_GRAY2BGR, 1);
+			imwrite(setting->snapshot_path + "touch.png", touchImage);
 			imwrite(setting->snapshot_path + "result.png", trackingResults);
 			putText(trackingResults, "Snapshot OK!", Point(40,120), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
 			setting->capture_snapshot = false;
@@ -631,49 +631,6 @@ void findHands(vector<vector<cv::Point> > contours) {
 		handTwo[index()].clear();
 		handOne[index()].clear();
 	}
-
-//	//Detect the two largest circles that represent hands, if they exist
-//	if(max1Radius > setting->radius_threshold && max2Radius > setting->radius_threshold) {
-//		if(max1Center.x > max2Center.x) {
-//			//max1 is on the left
-//			handOne[index()].setMinCircleCenter(max1Center);
-//			handOne[index()].setMinCircleRadius(max1Radius);
-//			handOne[index()].setContour(contours[max1ContourIndex]);
-//			handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-//			handOne[index()].setPresent(true);
-//			//and max2 is on the right
-//			handTwo[index()].setMinCircleCenter(max2Center);
-//			handTwo[index()].setMinCircleRadius(max2Radius);
-//			handTwo[index()].setContour(contours[max2ContourIndex]);
-//			handTwo[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-//			handTwo[index()].setPresent(true);
-//		} else {
-//			//max1 is on the right
-//			handTwo[index()].setMinCircleCenter(max1Center);
-//			handTwo[index()].setMinCircleRadius(max1Radius);
-//			handTwo[index()].setContour(contours[max1ContourIndex]);
-//			handTwo[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-//			handTwo[index()].setPresent(true);
-//			//max2 is therefore on the left
-//			handOne[index()].setMinCircleCenter(max2Center);
-//			handOne[index()].setMinCircleRadius(max2Radius);
-//			handOne[index()].setContour(contours[max2ContourIndex]);
-//			handOne[index()].setMinRect(minAreaRect(Mat(contours[max2ContourIndex])));
-//			handOne[index()].setPresent(true);
-//		}
-//	} else if(max1Radius > setting->radius_threshold ){
-//			//Assume max1 is the left hand, since there is only one hand
-//			handOne[index()].setMinCircleCenter(max1Center);
-//			handOne[index()].setMinCircleRadius(max1Radius);
-//			handOne[index()].setContour(contours[max1ContourIndex]);
-//			handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
-//			handOne[index()].setPresent(true);
-//			//clear right hand
-//			handTwo[index()].clear();
-//	} else {
-//		handTwo[index()].clear();
-//		handOne[index()].clear();
-//	}
 }
 
 /**
@@ -725,9 +682,13 @@ void drawFeatures(Mat img) {
 	if(handOne.at(index()).isPresent()) {
 		vector<Point2f> points = handOne.at(index()).getFeatures();
 		vector<Point2f> vectors = handOne.at(index()).getVectors();
+		vector<float> featureDepth = handOne.at(index()).getFeaturesDepth();
 		for (uint i = 0; i < points.size(); i++) {
 			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), ORANGE);
 			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
+			int scaled_depth = 1 + 50 * featureDepth[i];
+			Point2f depth_visual = Point2f(points[i].x, points[i].y + scaled_depth);
+			line(img, points[i], depth_visual, GREEN, 5, 10);
 		}
 	}
 
@@ -776,9 +737,7 @@ void drawMeanAndStdDev(Mat img) {
 }
 
 /**
- * assign features and their corresponding vector to hand(s) if th.0
- * 03
- * e feature
+ * assign features and their corresponding vector to hand(s) if the feature
  * has been successfully tracked and a hand contain it
  */
 void assignFeaturesToHands() {
@@ -789,13 +748,12 @@ void assignFeaturesToHands() {
 				if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
 					//point is inside contour of the left hand
 					Point2f vector = currentCorners[i] - previousCorners[i];
-					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector);
+					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i]);
 				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
 					Point2f vector = currentCorners[i] - previousCorners[i];
-					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector);
+					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i]);
 				} else {
 					//this is noise or some other object
-					//leftRightStatus.push_back(0); //Neither hand
 					//Don't worry about it!
 				}
 			}
@@ -827,27 +785,33 @@ void meanAndStdDevExtract() {
 
 /**
  * Calculate the depth of each feature based on the blurriness of its window
- * TODO: complete this function using minEigenValue calculation
+ * @Precondition: img is the image showing minEigenValue calculation. Bright pixels in this image represent highly sharp regions
  */
-void featureDepthExtract(const Mat img) {
-	Mat feature;
+void featureDepthExtract(Mat img) {
+	Mat featureRegion;
 	Rect rect;
-	Scalar stdDev;
+	//Scalar stdDev;
 	Scalar mean;
 	featureDepth.clear();
-//	for(int i = 0; i < maxCorners; i++) {
+
+	for(int i = 0; i < maxCorners; i++) {
 //		if(leftRightStatus[i] == 1 || leftRightStatus[i] == 2) {
-//			//left or right hand feature
-//			rect = Rect(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2, blockSize, blockSize);
-//			feature = Mat(img, rect);
-//
-//			//meanStdDev(feature, mean, stdDev);
-//			//featureDepth.push_back(stdDev.val[0]);
+			//left or right hand feature
+			rect = Rect(int(currentCorners[i].x - blockSize/2), int(currentCorners[i].y - blockSize/2), blockSize, blockSize);
+			if(rect.x < 0 || rect.y < 0 || rect.x + blockSize > img.cols || rect.y + blockSize > img.rows) {
+				//we dont care about the features that are right on the edge
+				featureDepth.push_back(-1);
+				continue;
+			}
+			featureRegion = img(rect);
+			//meanStdDev(featureRegion, mean, stdDev);
+			mean = cv::mean(featureRegion);
+			featureDepth.push_back(mean.val[0]);
 //		} else {
 //			//Doesnt matter if the feature is not assigned to a hand, so set to -1
 //			featureDepth.push_back(-1);
 //		}
-//	}
+	}
 }
 
 void printKeys() {
