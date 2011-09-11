@@ -23,6 +23,7 @@ void start();
 void checkGrab();
 void checkRelease();
 void meanAndStdDevExtract();
+void featureDepthExtract(cv::Mat img);
 void findGoodFeatures(cv::Mat frame1, cv::Mat frame2);
 void assignFeaturesToHands();
 void drawFeatures(cv::Mat img);

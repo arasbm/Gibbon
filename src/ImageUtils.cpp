@@ -28,12 +28,14 @@ using namespace cv;
 static Setting* setting = Setting::Instance();
 
 /**
- * Experimental
- * Precondition: ksize (sobel kernel size) must be odd and not larger than 31
+ * This method calculated a measure of sharpness in the image by applying the
+ * corner min eigen value algorithm to the image. The brighter pixels represent
+ * higher potential for pixel to be in touch region.
+ * This method works since objects closer to diffuser become sharper
  */
-void depthFromDiffusion(Mat sourceImg, Mat depthImg) {
+void sharpnessImage(Mat sourceImg, Mat touchImg) {
 	// blockSize define the window to consider around each pixel, so higher number produces larger blocks in the image
-	cv::cornerMinEigenVal(sourceImg, depthImg, 10, 9);
+	cv::cornerMinEigenVal(sourceImg, touchImg, 10, 9);
 }
 
 /**

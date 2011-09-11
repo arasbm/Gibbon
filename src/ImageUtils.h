@@ -24,7 +24,7 @@
 
 #include "cv.h"
 
-void depthFromDiffusion(cv::Mat sourceImg, cv::Mat depthImg);
+void sharpnessImage(cv::Mat sourceImg, cv::Mat depthImg);
 void rotateImage(cv::Mat* src, cv::Mat* dst, float degrees);
 
 

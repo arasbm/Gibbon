@@ -35,7 +35,8 @@ typedef enum _handSide {
 typedef enum _gesture {
 	GESTURE_NONE = 0,
 	GESTURE_GRAB = 1,
-	GESTURE_RELEASE = 2
+	GESTURE_RELEASE = 2,
+	GESTURE_TWIST = 3
 } gesture;
 
 class Hand {
@@ -67,9 +68,10 @@ public:
 	void setNumOfFeatures(int numOfFeatures);
 	int getNumOfFeatures();
 	bool hasPointInside(Point2f point);
-	void addFeatureAndVector(Point2f feature, Point2f vector);
+	void addFeatureAndVector(Point2f feature, Point2f vector, float depth);
 	vector<Point2f> getFeatures();
 	vector<Point2f> getVectors();
+	vector<float> getFeaturesDepth();
 	void calcMeanStdDev();
 	bool hasGesture();
 
@@ -80,6 +82,7 @@ private:
 	vector<cv::Point> contour;
 	vector<Point2f> features; //location of features of this hand
 	vector<Point2f> vectors; //vector associated with features of this hand
+	vector<float> featureDepth; //relative depth of current feature based on sharpness of its region
 	Point2f featureMean; //mean location of features
 	float featureStdDev; //standard deviation of features
 

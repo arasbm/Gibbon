@@ -76,8 +76,10 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		if ((!strcmp(argv[1], "-?") || !strcmp(argv[1], "--?") || !strcmp(argv[1], "/?") || !strcmp(argv[1], "/h") || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "/help") || !strcmp(argv[1], "-help") || !strcmp(argv[1], "help") ))
 		{
 			std::cout << "Bimanual Near Touch Tracker\n"
-			<< "Version: 0.1\n"
-			<< "Author: Aras Balali Moghaddam\n\n"
+			<< "Version: " << GIBBON_VERSION
+			<< "Authors:\n"
+			<< "	Aras Balali Moghaddam\n"
+			<< "	Nathan McLean\n"
 			<< desc;
 		   return false;
 		}

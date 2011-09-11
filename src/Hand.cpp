@@ -238,10 +238,12 @@ bool Hand::hasPointInside(Point2f point) {
 }
 
 /**
- * add location of a features of this hand and the vector associated with it
+ * Add location of a features of this hand, the vector associated with it
+ * and the approximate depth based on sharpness measurements
  */
-void Hand::addFeatureAndVector(Point2f feature, Point2f vector) {
+void Hand::addFeatureAndVector(Point2f feature, Point2f vector, float depth) {
 	features.push_back(feature);
+	featureDepth.push_back(depth);
 	vectors.push_back(vector);
 }
 
@@ -265,6 +267,10 @@ vector<Point2f> Hand::getFeatures() {
  */
 vector<Point2f> Hand::getVectors() {
 	return vectors;
+}
+
+vector<float> Hand::getFeaturesDepth() {
+	return featureDepth;
 }
 
 /**
@@ -294,6 +300,7 @@ void Hand::clear() {
 	setPresent(false);
 	handGesture = GESTURE_NONE;
 	features.clear();
+	featureDepth.clear();
 	vectors.clear();
 	//TODO: Check for anything else I need to do here to prevent error or release memory
 }
