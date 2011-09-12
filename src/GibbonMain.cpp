@@ -58,9 +58,10 @@ vector<uchar> flowStatus; //set to 1 if the flow for the corresponding features 
 vector<float> flowCount; //number of times the flow of this feature has been detected
 //vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
 vector<float> flowError;
-TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
+//TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
+TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_NUMBER | CV_TERMCRIT_EPS, 4, 0.1);
 double derivLambda = 0; //proportion for impact of "image intensity" as opposed to "derivatives"
-int maxCorners = 12;
+int maxCorners = 5;
 double qualityLevel = 0.01;//0.01;
 double minDistance = 10;
 int blockSize = 16;
@@ -81,7 +82,9 @@ int main(int argc, char* argv[]) {
 	if(!setting->is_daemon) {
 		cvNamedWindow( "Source", CV_WINDOW_AUTOSIZE ); 		//monochrome source
 		//cvNamedWindow( "Processed", CV_WINDOW_AUTOSIZE ); 	//monochrome image after pre-processing
-		cvNamedWindow( "Tracked", CV_WINDOW_AUTOSIZE ); 	//Color with pretty drawings showing tracking results
+		cvNamedWindow( "Tracked", CV_WINDOW_NORMAL); 	//Color with pretty drawings showing tracking results
+		cvSetWindowProperty("Tracked", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+
 	}
 	// Mat colorImg; //color image for connected component labelling
 
@@ -176,9 +179,9 @@ void drawHandTrace(Mat img) {
 			int previous = previousIndex(i + 1);
 			if(handOne.at(current).isPresent() && handOne.at(previous).isPresent()) {
 				if(setting->left_grab_mode) {
-					line(img, handOne.at(previous).getMinCircleCenter(), handOne.at(current).getMinCircleCenter(), ORANGE, 5, 4, 0);
+					line(img, handOne.at(previous).getMinRectCenter(), handOne.at(current).getMinRectCenter(), ORANGE, 5, 4, 0);
 				} else {
-					line(img, handOne.at(previous).getMinCircleCenter(), handOne.at(current).getMinCircleCenter(), ORANGE, 2, 4, 0);
+					line(img, handOne.at(previous).getMinRectCenter(), handOne.at(current).getMinRectCenter(), ORANGE, 2, 4, 0);
 				}
 			}
 		}
@@ -193,9 +196,9 @@ void drawHandTrace(Mat img) {
 			int previous = previousIndex(i + 1);
 			if(handTwo.at(current).isPresent() && handTwo.at(previous).isPresent()) {
 				if(setting->left_grab_mode) {
-					line(img, handTwo.at(previous).getMinCircleCenter(), handTwo.at(current).getMinCircleCenter(), BLUE, 5, 4, 0);
+					line(img, handTwo.at(previous).getMinRectCenter(), handTwo.at(current).getMinRectCenter(), BLUE, 5, 4, 0);
 				} else {
-					line(img, handTwo.at(previous).getMinCircleCenter(), handTwo.at(current).getMinCircleCenter(), BLUE, 2, 4, 0);
+					line(img, handTwo.at(previous).getMinRectCenter(), handTwo.at(current).getMinRectCenter(), BLUE, 2, 4, 0);
 				}
 			}
 		}
@@ -248,7 +251,7 @@ void findGoodFeatures(Mat frame1, Mat frame2) {
 		goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, Mat(), blockSize, useHarrisDetector);
 		//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
 		int maxLevel = 0; // 0-based maximal pyramid level number. If 0, pyramids are not used (single level), if 1, two levels are used etc.
-		calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), 0, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
+		calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), maxLevel, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
 	//	for(int i = 0; i < flowError.size(); i++) {
 	//		cout << "err " << i << " : " << flowError[i] << endl;
 	//	}
@@ -728,11 +731,11 @@ void drawFeatures(Mat img) {
 void drawMeanAndStdDev(Mat img) {
 	if(handOne.at(index()).isPresent()) {
 		circle(img, handOne.at(index()).getFeatureMean(), handOne.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
-		line(img, handOne.at(index()).getFeatureMean(), handOne.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
+		line(img, handOne.at(index()).getFeatureMean(), handOne.at(index()).getMinRectCenter(), YELLOW, 1, 4, 0);
 	}
 	if(handTwo.at(index()).isPresent()) {
 		circle(img, handTwo.at(index()).getFeatureMean(), handTwo.at(index()).getFeatureStdDev(), YELLOW, 1, 4, 0);
-		line(img, handTwo.at(index()).getFeatureMean(), handTwo.at(index()).getMinCircleCenter(), YELLOW, 1, 4, 0);
+		line(img, handTwo.at(index()).getFeatureMean(), handTwo.at(index()).getMinRectCenter(), YELLOW, 1, 4, 0);
 	}
 }
 

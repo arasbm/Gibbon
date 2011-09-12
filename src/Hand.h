@@ -48,6 +48,7 @@ public:
 	void setPresent(bool present);
 	void setMinRect(RotatedRect minRect);
 	RotatedRect getMinRect();
+	Point2f getMinRectCenter();
 	void setMinCircleCenter(Point2f center);
 	Point2f getMinCircleCenter();
 	void setMinCircleRadius(int radius);

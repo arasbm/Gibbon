@@ -85,6 +85,10 @@ RotatedRect Hand::getMinRect() {
 	return minRect;
 }
 
+Point2f Hand::getMinRectCenter() {
+	return minRect.center;
+}
+
 void Hand::setMinCircleCenter(Point2f center) {
 	circleCenter = center;
 }
@@ -290,7 +294,7 @@ void Hand::calcMeanStdDev() {
 	cv::meanStdDev(Mat(getFeatures()).reshape(2), mean, stdDev);
 	featureMean.x = (float)mean.val[0];
 	featureMean.y = (float)mean.val[1];
-	featureStdDev = (float)(stdDev.val[0] + stdDev.val[1]);
+	featureStdDev = (float)(stdDev.val[0] + stdDev.val[1]) / 2;
 }
 
 /**
