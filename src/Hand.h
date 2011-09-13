@@ -69,10 +69,13 @@ public:
 	void setNumOfFeatures(int numOfFeatures);
 	int getNumOfFeatures();
 	bool hasPointInside(Point2f point);
-	void addFeatureAndVector(Point2f feature, Point2f vector, float depth);
+	void addFeatureAndVector(Point2f feature, Point2f vector, float depth, Point2f orientation, uchar flowStatus);
 	vector<Point2f> getFeatures();
 	vector<Point2f> getVectors();
 	vector<float> getFeaturesDepth();
+	vector<Point2f> getFeatureOrientation();
+	Point2f getFeatureAt(int i);
+	uchar isFeatureTracked(int i);
 	void calcMeanStdDev();
 	bool hasGesture();
 
@@ -82,8 +85,10 @@ private:
 	Point2f circleCenter; //center of enclosing circle
 	vector<cv::Point> contour;
 	vector<Point2f> features; //location of features of this hand
-	vector<Point2f> vectors; //vector associated with features of this hand
-	vector<float> featureDepth; //relative depth of current feature based on sharpness of its region
+	vector<uchar> flowStatus; //set to 1 if the flow for the corresponding features has been found, 0 otherwise
+	vector<Point2f> vectors; //vector associated with features of this hand that represent the direction in which the feature is moving
+	vector<float> featureDepth; //relative depth of current feature based on sharpness of its region. Higher means closer to screen
+	vector<Point2f> featureOrientation; //Orientation of feature. In case of finger tip it is the normalized 2D projection of the vector in direction the finger is pointing at
 	Point2f featureMean; //mean location of features
 	float featureStdDev; //standard deviation of features
 
@@ -94,7 +99,7 @@ private:
 	float gestureX; //X position of the gesture in the range [0 1]
 	float gestureY; //Y position of the gesture in the range [0 1]
 	float angle; //the angle in the range [0 2PI]
-	int numOfFeatures; //number of features detected that belong to this hand
+	//int numOfFeatures; //number of features detected that belong to this hand
 
 };
 

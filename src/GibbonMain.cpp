@@ -59,7 +59,7 @@ vector<float> flowCount; //number of times the flow of this feature has been det
 //vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
 vector<float> flowError;
 //TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
-TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_NUMBER | CV_TERMCRIT_EPS, 4, 0.1);
+TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_NUMBER | CV_TERMCRIT_EPS, 20, 0.1);
 double derivLambda = 0; //proportion for impact of "image intensity" as opposed to "derivatives"
 int maxCorners = 5;
 double qualityLevel = 0.01;//0.01;
@@ -399,15 +399,16 @@ void start(){
 		if(numberOfHands() > 0) {
 			findGoodFeatures(previousFrame, currentFrame);
 			featureDepthExtract(touchImage);
-			drawHandTrace(trackingResults);
 			assignFeaturesToHands();
-			//imshow("test", handOne[index()].getContour());
-			drawFeatures(trackingResults);
-			//TODO: drawFeatureDepth(trackingResults);
 			meanAndStdDevExtract();
-			drawMeanAndStdDev(trackingResults);
 			GestureTracker::checkGestures(&handOne);
 			GestureTracker::checkGestures(&handTwo);
+			if(!setting->is_daemon) {
+				//only draw things if there are going to be displayed
+				drawHandTrace(trackingResults);
+				drawFeatures(trackingResults);
+				drawMeanAndStdDev(trackingResults);
+			}
 		} else {
 			//TODO: is any cleanup necessary here?
 		}
@@ -681,21 +682,48 @@ int previousIndex(int i) {
  * @Precondition: assignFeaturedToHand() is executed and leftRightStatus[i] is filled
  */
 void drawFeatures(Mat img) {
-	//Left hand
+	//First hand
 	if(handOne.at(index()).isPresent()) {
 		vector<Point2f> points = handOne.at(index()).getFeatures();
 		vector<Point2f> vectors = handOne.at(index()).getVectors();
 		vector<float> featureDepth = handOne.at(index()).getFeaturesDepth();
+		vector<Point2f> orientation = handOne.at(index()).getFeatureOrientation();
+
 		for (uint i = 0; i < points.size(); i++) {
+			//draw feature box
 			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), ORANGE);
+			//TODO: draw feature trace
+			for(uint j = 0; j+1 < hand_window_size; j++) {
+				int current = previousIndex(j);
+				int previous = previousIndex(j + 1);
+				if(!handOne.at(current).isFeatureTracked(i)) {
+					continue; //only draw lines if feature is successfully tracked
+				}
+				if(handOne.at(current).isPresent() && handOne.at(previous).isPresent()) {
+					line(img, handOne.at(previous).getFeatureAt(i), handOne.at(current).getFeatureAt(i), ORANGE, 2, 4, 0);
+				}
+			}
+
+			//draw feature direction vector
 			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
-			int scaled_depth = 1 + 50 * featureDepth[i];
-			Point2f depth_visual = Point2f(points[i].x, points[i].y + scaled_depth);
-			line(img, points[i], depth_visual, GREEN, 5, 10);
+
+			//visualize feature depth and touch with a circle
+			int base_radius = 30;
+			int scaled_depth = 1 + base_radius * 2 * featureDepth[i];
+
+			if(scaled_depth > setting->touch_depth_threshold) {
+				//visualize touch with a filled red circle
+				circle(img, points[i], blockSize, RED, -1, CV_AA);
+			} else if(scaled_depth < base_radius) {
+				circle(img, points[i], base_radius - scaled_depth, RED, 1, CV_AA);
+			}
+
+			//visualize feature orientation with a line
+			line(img, points[i], Point(points[i].x + orientation[i].x, points[i].y + orientation[i].y), GREEN, 3, CV_AA);
 		}
 	}
 
-	//Right hand
+	//Second hand
 	if(handTwo.at(index()).isPresent()) {
 		vector<Point2f> points = handTwo.at(index()).getFeatures();
 		vector<Point2f> vectors = handTwo.at(index()).getVectors();
@@ -751,10 +779,13 @@ void assignFeaturesToHands() {
 				if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
 					//point is inside contour of the left hand
 					Point2f vector = currentCorners[i] - previousCorners[i];
-					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i]);
+					Point2f orientation = Point2f(currentCorners[i].x - handOne.at(index()).getMinRectCenter().x,
+							currentCorners[i].y - handOne.at(index()).getMinRectCenter().y);
+					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i], orientation, flowStatus[i]);
 				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
 					Point2f vector = currentCorners[i] - previousCorners[i];
-					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i]);
+					Point2f orientation = currentCorners[i] - handOne.at(index()).getMinRectCenter();
+					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i], orientation, flowStatus[i]);
 				} else {
 					//this is noise or some other object
 					//Don't worry about it!

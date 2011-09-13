@@ -57,6 +57,7 @@ public:
 	int lower_threshold;
 	int upper_threshold;
 	int radius_threshold; //how big blobs should be to be considered as a hand
+	int touch_depth_threshold; //how close finger should be to be considered touch. Lower value means higher sensitivity
 	int median_blur_factor;
 	bool save_input_video;
 	bool save_output_video;
@@ -102,6 +103,7 @@ private:
 		lower_threshold = 10;
 		upper_threshold = 200;
 		radius_threshold = 30;
+		touch_depth_threshold = 20;
 		median_blur_factor = 7;
 		save_input_video = false;
 		save_output_video = false;

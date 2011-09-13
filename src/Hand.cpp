@@ -228,13 +228,6 @@ float Hand::getFeatureStdDev() {
 }
 
 /**
- * set the number of features that belong to this hand
- */
-void Hand::setNumOfFeatures(int nof) {
-	numOfFeatures = nof;
-}
-
-/**
  * if the point is inside the hand contour returns true, otherwise return false
  */
 bool Hand::hasPointInside(Point2f point) {
@@ -245,10 +238,12 @@ bool Hand::hasPointInside(Point2f point) {
  * Add location of a features of this hand, the vector associated with it
  * and the approximate depth based on sharpness measurements
  */
-void Hand::addFeatureAndVector(Point2f feature, Point2f vector, float depth) {
+void Hand::addFeatureAndVector(Point2f feature, Point2f vector, float depth, Point2f orientation, uchar status) {
 	features.push_back(feature);
-	featureDepth.push_back(depth);
 	vectors.push_back(vector);
+	featureDepth.push_back(depth);
+	featureOrientation.push_back(orientation);
+	flowStatus.push_back(status);
 }
 
 /**
@@ -267,7 +262,8 @@ vector<Point2f> Hand::getFeatures() {
 }
 
 /**
- * Return a vector of points representing "Vectors" associated with features of this hand
+ * Return a vector of points representing "Movement Vectors" that are
+ * associated with features of this hand
  */
 vector<Point2f> Hand::getVectors() {
 	return vectors;
@@ -275,6 +271,31 @@ vector<Point2f> Hand::getVectors() {
 
 vector<float> Hand::getFeaturesDepth() {
 	return featureDepth;
+}
+
+/**
+ * Returns the vector containing feature orientation. This is the anatomical orientation
+ * Usually the feature represent a finger tip and this vector represents the direction that
+ * the finger is pointing at. This is NOT the movement direction.
+ */
+vector<Point2f> Hand::getFeatureOrientation() {
+	return featureOrientation;
+}
+
+/**
+ * Return the position of feature at specified index i
+ */
+Point2f Hand::getFeatureAt(int i) {
+	return features[i];
+}
+
+/**
+ * return the flow status of this feature at index i
+ * if feature is tracked 1 is returned
+ * if feature is NOT tracked this function returns 0
+ */
+uchar Hand::isFeatureTracked(int i) {
+	return flowStatus[i];
 }
 
 /**
