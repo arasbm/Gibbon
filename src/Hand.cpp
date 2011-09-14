@@ -327,5 +327,7 @@ void Hand::clear() {
 	features.clear();
 	featureDepth.clear();
 	vectors.clear();
+	featureOrientation.clear();
+	flowStatus.clear();
 	//TODO: Check for anything else I need to do here to prevent error or release memory
 }

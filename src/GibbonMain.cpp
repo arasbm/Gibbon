@@ -52,6 +52,7 @@ vector<Hand> handTwo(hand_window_size, Hand(RIGHT_HAND)); //circular: see index(
 
 /** goodFeaturesToTrack structure and settings **/
 vector<Point2f> previousCorners;
+bool noPreviousCorners = true;
 vector<Point2f> currentCorners; //Centre point of feature or corner rectangles
 vector<float> featureDepth; //depth of current corners as calculated by featureDepthExtract function
 vector<uchar> flowStatus; //set to 1 if the flow for the corresponding features has been found, 0 otherwise
@@ -59,12 +60,12 @@ vector<float> flowCount; //number of times the flow of this feature has been det
 //vector<uchar> leftRightStatus; // 0=None, 1=Left, 2=Right
 vector<float> flowError;
 //TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.3 );
-TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_NUMBER | CV_TERMCRIT_EPS, 20, 0.1);
+TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_NUMBER | CV_TERMCRIT_EPS, 10, 0.3);
 double derivLambda = 0; //proportion for impact of "image intensity" as opposed to "derivatives"
 int maxCorners = 5;
-double qualityLevel = 0.01;//0.01;
+double qualityLevel = 0.001;//0.01;
 double minDistance = 10;
-int blockSize = 16;
+int blockSize = 26;
 bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
@@ -246,15 +247,13 @@ void processKey(char key) {
  * result is stored in global data structure
  */
 void findGoodFeatures(Mat frame1, Mat frame2) {
-
-	if(frame1.cols == frame2.cols && frame1.rows == frame2.rows) { //ensure frames were not resizedq
+	if(frame1.cols == frame2.cols && frame1.rows == frame2.rows) { //ensure frames were not resized
+		previousCorners.clear();
 		goodFeaturesToTrack(frame1, previousCorners, maxCorners, qualityLevel, minDistance, Mat(), blockSize, useHarrisDetector);
 		//cornerSubPix(previousFrame, previousCorners, Size(10,10), Size(-1,-1), termCriteria);
-		int maxLevel = 0; // 0-based maximal pyramid level number. If 0, pyramids are not used (single level), if 1, two levels are used etc.
+
+		int maxLevel = 1; // 0-based maximal pyramid level number. If 0, pyramids are not used (single level), if 1, two levels are used etc.
 		calcOpticalFlowPyrLK(frame1, frame2, previousCorners, currentCorners, flowStatus, flowError, Size(blockSize, blockSize), maxLevel, termCriteria, derivLambda, OPTFLOW_FARNEBACK_GAUSSIAN);
-	//	for(int i = 0; i < flowError.size(); i++) {
-	//		cout << "err " << i << " : " << flowError[i] << endl;
-	//	}
 	}
 }
 
@@ -269,11 +268,11 @@ void start(){
 	vector<Vec4i> hiearchy;
 
 	VideoCapture video(setting->input_video_path);
-	video.set(CV_CAP_PROP_FPS, 30);
 
 	if(setting->pgr_cam_index >= 0) {
 		pgrCamera.init();
 	} else {
+		video.set(CV_CAP_PROP_FPS, 30);
 		if(!video.isOpened()) { // check if we succeeded
 			cout << "Failed to open video file: " << setting->input_video_path << endl;
 			return;
@@ -291,6 +290,7 @@ void start(){
 	Mat binaryImg; //binary image for finding contours of the hand
 	Mat tmpColor;
 	Mat touchImage;
+	Mat previousTouchImage;
 
 	//Mat watershed_markers = cvCreateImage( setting->imageSize, IPL_DEPTH_32S, 1 );
 	//Mat watershed_image;
@@ -361,11 +361,14 @@ void start(){
 		}
 
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
+		touchImage = Mat(currentFrame.size(), CV_32FC1);
+		sharpnessImage(currentFrame, touchImage);
 		if(!setting->is_daemon) {
 			imshow("Binary", binaryImg);
-			touchImage = Mat(currentFrame.size(), CV_32FC1);
-			sharpnessImage(currentFrame, touchImage);
 			imshow("Touch", touchImage);
+		}
+		if(frameCount == 0) {
+			previousFrame = currentFrame;
 		}
 
 		//findContours(binaryImg, contours, hiearchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_L1);
@@ -397,7 +400,8 @@ void start(){
 		findHands(contours);
 
 		if(numberOfHands() > 0) {
-			findGoodFeatures(previousFrame, currentFrame);
+			//findGoodFeatures(previousFrame, currentFrame);
+			findGoodFeatures(previousTouchImage, touchImage);
 			featureDepthExtract(touchImage);
 			assignFeaturesToHands();
 			meanAndStdDevExtract();
@@ -456,6 +460,7 @@ void start(){
 		message.commit();
 		previousFrame = currentFrame;
 		currentCorners = previousCorners;
+		previousTouchImage = touchImage;
 		frameCount++;
 	}
 
@@ -693,22 +698,22 @@ void drawFeatures(Mat img) {
 			//draw feature box
 			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), ORANGE);
 			//TODO: draw feature trace
-			for(uint j = 0; j+1 < hand_window_size; j++) {
-				int current = previousIndex(j);
-				int previous = previousIndex(j + 1);
-				if(!handOne.at(current).isFeatureTracked(i)) {
-					continue; //only draw lines if feature is successfully tracked
-				}
-				if(handOne.at(current).isPresent() && handOne.at(previous).isPresent()) {
-					line(img, handOne.at(previous).getFeatureAt(i), handOne.at(current).getFeatureAt(i), ORANGE, 2, 4, 0);
-				}
-			}
+//			for(uint j = 0; j+1 < hand_window_size; j++) {
+//				int current = previousIndex(j);
+//				int previous = previousIndex(j + 1);
+//				if(!handOne.at(current).isFeatureTracked(i)) {
+//					continue; //only draw lines if feature is successfully tracked
+//				}
+//				if(handOne.at(current).isPresent() && handOne.at(previous).isPresent()) {
+//					line(img, handOne.at(previous).getFeatureAt(i), handOne.at(current).getFeatureAt(i), ORANGE, 2, 4, 0);
+//				}
+//			}
 
 			//draw feature direction vector
 			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
 
 			//visualize feature depth and touch with a circle
-			int base_radius = 30;
+			int base_radius = 50;
 			int scaled_depth = 1 + base_radius * 2 * featureDepth[i];
 
 			if(scaled_depth > setting->touch_depth_threshold) {
@@ -719,7 +724,7 @@ void drawFeatures(Mat img) {
 			}
 
 			//visualize feature orientation with a line
-			line(img, points[i], Point(points[i].x + orientation[i].x, points[i].y + orientation[i].y), GREEN, 3, CV_AA);
+			line(img, points[i], points[i] + orientation[i], GREEN, 3, CV_AA);
 		}
 	}
 
@@ -779,8 +784,10 @@ void assignFeaturesToHands() {
 				if(handOne.at(index()).isPresent() && handOne.at(index()).hasPointInside(currentCorners[i])) {
 					//point is inside contour of the left hand
 					Point2f vector = currentCorners[i] - previousCorners[i];
-					Point2f orientation = Point2f(currentCorners[i].x - handOne.at(index()).getMinRectCenter().x,
-							currentCorners[i].y - handOne.at(index()).getMinRectCenter().y);
+
+					Point2f orientation = currentCorners[i] - handOne.at(index()).getMinRectCenter();
+//					Point2f orientation = Point2f(currentCorners[i].x - handOne.at(index()).getMinRectCenter().x,
+//							currentCorners[i].y - handOne.at(index()).getMinRectCenter().y);
 					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i], orientation, flowStatus[i]);
 				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
 					Point2f vector = currentCorners[i] - previousCorners[i];

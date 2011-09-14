@@ -85,7 +85,7 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		}
 
 		if (vm.count("config-file"))
-		{
+{
 			std::ifstream ifs(config_file_path.c_str());
 			if (ifs) {
 				store(parse_config_file(ifs, desc), vm);

@@ -23,6 +23,7 @@
 #define IMAGE_PROVIDER_H_
 
 #include "cv.h"
+#include "ImageUtils.h"
 // TODO: find the right include above and remove the unnecessary ones.
 
 class ImageProvider {

@@ -87,11 +87,29 @@ void CameraPGR::init(){
     } else {
 		pgrCam.StartCapture();
     }
-
-	if (pgError != PGRERROR_OK){
+    if (pgError != PGRERROR_OK){
 		cout << "Error in starting the camera capture" << endl;
 		return;
 	}
+
+    // set frame rate property
+    Property prop;
+	prop.type = FRAME_RATE;
+	pgError = pgrCam.GetProperty( &prop );
+	if (pgError != PGRERROR_OK)
+	{
+		cout << "ERROR setting camera properties" << endl;
+	}
+	prop.autoManualMode = false;
+	prop.onOff = true;
+	prop.absValue = 24.0;
+
+	pgError = pgrCam.SetProperty( &prop );
+	if (pgError != PGRERROR_OK)
+	{
+		cout << "ERROR setting camera properties" << endl;
+	}
+
 	cout << "pgr camera successfully initialized." << endl;
 }
 
@@ -112,7 +130,6 @@ cv::Mat CameraPGR::grabImage(){
 		undistortion.undistortImage(&image);
 	}
 	image = image(cv::Rect(setting->imageOffsetX, setting->imageOffsetY, setting->imageSizeX, setting->imageSizeY));
-
 	return image;
 }
 
