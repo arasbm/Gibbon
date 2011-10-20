@@ -148,7 +148,8 @@ void Undistortion::saveCalibrationData(Mat intrinsic, Mat distortion, float offs
 	//write changes to conf file
 	const int maxLineSize = 256;
 	char buff [maxLineSize];
-
+/*
+ * 	TODO: fix boost linker error
 	boost::regex expOffsetX("imageOffsetX[[:space:]]*=[[:space:]]*[[:digit:]]*\.?[[:digit:]]*\n");
 	string replaceOffsetX(string("imageOffsetX = ") + boost::lexical_cast<string>(offsetX) + string("\n"));
 
@@ -176,7 +177,7 @@ void Undistortion::saveCalibrationData(Mat intrinsic, Mat distortion, float offs
 
 		fputs(line.c_str(), fpOUT);
 	}
-
+*/
 	int success = 0;
 
 	success += remove(configFilepath.c_str());

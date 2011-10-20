@@ -40,7 +40,7 @@ void GestureTracker::checkGestures(vector<Hand>* h) {
 bool GestureTracker::checkGrabRelease(vector<Hand>* h) {
 	//need at least 3 hands confirming the gesture
 	int handsToTrack = 3;
-	int min_feature = 5;
+	int min_feature = 1;
 
 	float speedTolerance = 5.0f;
 	float stdDevScaleFactor = 1.1f; //expected minimum change in size of std dev

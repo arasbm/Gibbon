@@ -84,6 +84,7 @@ public:
 
 	/*** pgr camera settings ***/
 	int pgr_cam_index;
+	int pgr_obs_cam1_index;
 	int pgr_cam_max_width;
 	int pgr_cam_max_height;
 	float imageOffsetX; //offset of image ROI
@@ -111,9 +112,9 @@ private:
 		send_tuio = true;
 		verbose = true; //when in verbose mode, process info is printed to terminal in various places
 		is_daemon = false; //when in daemon mode no video is displayed and no drawing happens
-		source_recording_path = "/home/arasbm/Desktop/grab_and_release_data/source.avi";
-		result_recording_path = "/home/arasbm/Desktop/grab_and_release_data/result.avi";
-		snapshot_path = "/home/arasbm/Desktop/grab_and_release_data/";
+		source_recording_path = "";
+		result_recording_path = "";
+		snapshot_path = "";
 		log_path = "/home/arasbm/Desktop/grab_and_release_data/log.txt";
 		input_video_path = "/mnt/arasbm_server/near_touch_data/test.avi";
 		config_file_path = "config.ini";
@@ -130,6 +131,7 @@ private:
 
 		/*** pgr camera serrings ***/
 		pgr_cam_index = 0;
+		pgr_obs_cam1_index = 1; //index of first pgr user observer camera
 		pgr_cam_max_width = 752;
 		pgr_cam_max_height = 480;
 	};// Private constructor

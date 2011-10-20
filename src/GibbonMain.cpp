@@ -69,6 +69,8 @@ int blockSize = 26;
 bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 
 CameraPGR pgrCamera;
+CameraPGR pgrObsCam1; //external camera for observing user
+
 Message message; //used by updateMessage() and inside the main loop
 int frameCount = 0;
 static Setting* setting = Setting::Instance();
@@ -84,7 +86,7 @@ int main(int argc, char* argv[]) {
 		cvNamedWindow( "Source", CV_WINDOW_AUTOSIZE ); 		//monochrome source
 		//cvNamedWindow( "Processed", CV_WINDOW_AUTOSIZE ); 	//monochrome image after pre-processing
 		cvNamedWindow( "Tracked", CV_WINDOW_NORMAL); 	//Color with pretty drawings showing tracking results
-		cvSetWindowProperty("Tracked", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+		//cvSetWindowProperty("Tracked", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN); //Set tracked window to fullscreen
 
 	}
 	// Mat colorImg; //color image for connected component labelling
@@ -269,8 +271,25 @@ void start(){
 
 	VideoCapture video(setting->input_video_path);
 
+	//Get external cameras
+	//VideoCapture externalCamOne(0); // open the first USB camera
+	//CvCapture *externalCamOne = 0;
+	//externalCamOne = cvCaptureFromCAM(0);
+	//externalCamOne.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+	//externalCamOne.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+	//externalCamOne.set(CV_CAP_PROP_FPS, 10);
+//	if(externalCamOne) {
+//		verbosePrint("USB Camera 1 is detected");
+//	} else {
+//		verbosePrint("NO external cam detected");
+//	}
+
+	if(setting->pgr_obs_cam1_index >=0) {
+		pgrObsCam1.init(setting->pgr_obs_cam1_index);
+	}
+
 	if(setting->pgr_cam_index >= 0) {
-		pgrCamera.init();
+		pgrCamera.init(setting->pgr_cam_index);
 	} else {
 		video.set(CV_CAP_PROP_FPS, 30);
 		if(!video.isOpened()) { // check if we succeeded
@@ -291,6 +310,10 @@ void start(){
 	Mat tmpColor;
 	Mat touchImage;
 	Mat previousTouchImage;
+	Mat obs1Frame;
+	Mat obs1FrameBGR; //color converted to display
+	Mat tmpEigenBGR; //temporary color version of eigen value (touch) image to display
+	Mat displayResults;
 
 	//Mat watershed_markers = cvCreateImage( setting->imageSize, IPL_DEPTH_32S, 1 );
 	//Mat watershed_image;
@@ -302,6 +325,10 @@ void start(){
 	gettimeofday(&first_time, 0);
 	int fps = 0;
 	while(key != 'q') {
+		if(setting->pgr_obs_cam1_index >=0){
+			obs1Frame = pgrObsCam1.grabImage();
+		}
+
 		if(setting->pgr_cam_index >= 0){
 			currentFrame = pgrCamera.grabImage();
 //			Mat rotatedFrame;
@@ -324,6 +351,7 @@ void start(){
 			cvtColor(currentFrame, tmpColor, CV_RGB2GRAY);
 			currentFrame = tmpColor;
 		}
+
 		message.init();
 
 		if(!setting->is_daemon) {
@@ -363,10 +391,13 @@ void start(){
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
 		touchImage = Mat(currentFrame.size(), CV_32FC1);
 		sharpnessImage(currentFrame, touchImage);
+		touchImage.convertTo(touchImage, CV_8UC1, 255, 0);
+
 		if(!setting->is_daemon) {
 			imshow("Binary", binaryImg);
-			imshow("Touch", touchImage);
+			//imshow("Touch", touchImage);
 		}
+
 		if(frameCount == 0) {
 			previousFrame = currentFrame;
 		}
@@ -389,10 +420,6 @@ void start(){
 			}
 		}
 
-		//drawContours(watershed_markers, contours, -1, CV_RGB(0, 0, 0)); //TODO watershed testing
-		//TODO: watershed testing
-		//imshow("Watershed before", watershed_markers);
-		//watershed_image = cvCreateMat(currentFrame.rows, currentFrame.cols, CV_8UC3 );
 		//cvtColor(currentFrame, watershed_image, CV_GRAY2BGR);
 		//watershed(watershed_image, touchImage);
 		//imshow("Watershed", touchImage);
@@ -419,13 +446,31 @@ void start(){
 		updateMessage();
 
 		if(setting->capture_snapshot) {
+			//TODO: check for existing files and increment accordingly - or use date
 			imwrite(setting->snapshot_path + "source.png", currentFrame);
-			touchImage.convertTo(touchImage, CV_8SC3);
 			//cvtColor(touchImage, touchImage, CV_GRAY2BGR, 1);
 			imwrite(setting->snapshot_path + "touch.png", touchImage);
 			imwrite(setting->snapshot_path + "result.png", trackingResults);
 			putText(trackingResults, "Snapshot OK!", Point(40,120), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
 			setting->capture_snapshot = false;
+		}
+
+
+		if(!setting->is_daemon) {
+			//Combine images to display
+			cvtColor(obs1Frame, obs1FrameBGR, CV_GRAY2BGR);
+			cvtColor(touchImage, tmpEigenBGR, CV_GRAY2BGR);
+			obs1Frame.setTo(Scalar(10,10,0));
+			displayResults = Mat(trackingResults.rows + tmpEigenBGR.rows, trackingResults.cols + obs1FrameBGR.cols, CV_8UC3);
+			Mat roiImgResult_topLeft = displayResults(Rect(0, 0, trackingResults.cols, trackingResults.rows)); //Image will be on the top left part
+			Mat roiImgResult_topRight = displayResults(Rect(trackingResults.cols, 0, obs1FrameBGR.cols, obs1FrameBGR.rows));
+			Mat roiImgResult_lowerRight = displayResults(Rect(trackingResults.cols, trackingResults.rows, tmpEigenBGR.cols, tmpEigenBGR.rows));
+			trackingResults.copyTo(roiImgResult_topLeft);
+			obs1FrameBGR.copyTo(roiImgResult_topRight);
+			tmpEigenBGR.copyTo(roiImgResult_lowerRight);
+
+			//Decorate image with overlay and info
+			putText(displayResults, fps_str.str(), Point(20, trackingResults.rows + 20), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
 		}
 
 		//calculate and display FPS every 100 frames
@@ -437,16 +482,15 @@ void start(){
 			first_time = second_time;
 		}
 		if(frameCount % 1000 == 0) verbosePrint(fps_str.str()); //report fps every 1000 frame on the terminal
-		putText(trackingResults, fps_str.str(), Point(5,20), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
 
 		if(!setting->is_daemon) {
 			if(setting->save_output_video){
 				if (resultWriter.isOpened()) {
-					resultWriter << trackingResults;
-					putText(trackingResults, "Recording Results ... ", Point(40,120), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
+					resultWriter << displayResults;
+					putText(displayResults, "Recording Results ... ", Point(20, trackingResults.rows + 40), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
 				} else {
-					resultWriter = VideoWriter(setting->result_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps,
-							Size(setting->imageSizeX,setting->imageSizeY));
+					resultWriter = VideoWriter(setting->result_recording_path, CV_FOURCC('D', 'X', '5', '0'), fps,
+							Size(displayResults.cols, displayResults.rows));
 				}
 			}
 
@@ -454,7 +498,11 @@ void start(){
 				//actually saving is done before pre processing above
 				putText(trackingResults, "Recording Source ... ", Point(40,40), FONT_HERSHEY_COMPLEX, 1, YELLOW, 3, 8, false);
 			}
-			imshow("Tracked", trackingResults);
+
+
+			if(!setting->is_daemon) {
+				imshow("Tracked", displayResults);
+			}
 		}
 
 		message.commit();
@@ -713,8 +761,8 @@ void drawFeatures(Mat img) {
 			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
 
 			//visualize feature depth and touch with a circle
-			int base_radius = 50;
-			int scaled_depth = 1 + base_radius * 2 * featureDepth[i];
+			int base_radius = 70;
+			int scaled_depth = 1 + base_radius * featureDepth[i] / 4.0;
 
 			if(scaled_depth > setting->touch_depth_threshold) {
 				//visualize touch with a filled red circle

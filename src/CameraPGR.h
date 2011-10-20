@@ -34,7 +34,7 @@ class CameraPGR : public ImageProvider {
 
 public:
 	cv::Mat grabImage();
-	void init();
+	void init(int cam_index);
 	void calibrateUndistortionROI();
 	~CameraPGR();
 

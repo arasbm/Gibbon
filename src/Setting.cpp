@@ -43,6 +43,7 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		desc.add_options()
 		   ("help", "Display this message")
 		   ("pgr-index", po::value<int>(&pgr_cam_index)->default_value(0), "index of pgr camera to use. Negative means do not use pgr camera")
+		   ("obs-cam-index", po::value<int>(&pgr_obs_cam1_index)->default_value(1), "index of observer camera")
 		   ("config-file", po::value<std::string>(&config_file_path),"Optionally provide a path to configuration file")
 		   ("verbose", po::value<bool>(&verbose), "If you want me to keep talking set verbose to true")
 		   ("is-daemon", po::value<bool>(&is_daemon), "In daemon mode there is no vidoe or visualization")

@@ -37,7 +37,7 @@ CameraPGR::~CameraPGR() {
 /**
  * Initialize a PGR camera with format 7 settings
  * */
-void CameraPGR::init(){
+void CameraPGR::init(int cam_index){
 	//if undistortion on, initialize undistortion
 	if(setting->do_undistortion) {
 		undistortion = Undistortion();
@@ -53,7 +53,7 @@ void CameraPGR::init(){
 	fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_MONO8;
     bool valid;
 
-    busManager.GetCameraFromIndex(setting->pgr_cam_index, &guid);
+    busManager.GetCameraFromIndex(cam_index, &guid);
 	Error pgError;
 	pgError = pgrCam.Connect(&guid);
 	if (pgError != PGRERROR_OK){
