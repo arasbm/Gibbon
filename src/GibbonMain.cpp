@@ -63,7 +63,7 @@ vector<float> flowError;
 TermCriteria termCriteria = TermCriteria( CV_TERMCRIT_NUMBER | CV_TERMCRIT_EPS, 10, 0.3);
 double derivLambda = 0; //proportion for impact of "image intensity" as opposed to "derivatives"
 int maxCorners = 5;
-double qualityLevel = 0.001;//0.01;
+double qualityLevel = 0.01;//0.01;
 double minDistance = 10;
 int blockSize = 26;
 bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
@@ -72,6 +72,8 @@ CameraPGR pgrCamera;
 CameraPGR pgrObsCam1; //external camera for observing user
 
 Message message; //used by updateMessage() and inside the main loop
+bool wiz_grab = false;
+bool wiz_release = false;
 int frameCount = 0;
 static Setting* setting = Setting::Instance();
 
@@ -83,9 +85,9 @@ int main(int argc, char* argv[]) {
 	verbosePrint("Starting ... ");
 
 	if(!setting->is_daemon) {
-		cvNamedWindow( "Source", CV_WINDOW_AUTOSIZE ); 		//monochrome source
+		//cvNamedWindow( "Source", CV_WINDOW_AUTOSIZE ); 		//monochrome source
 		//cvNamedWindow( "Processed", CV_WINDOW_AUTOSIZE ); 	//monochrome image after pre-processing
-		cvNamedWindow( "Tracked", CV_WINDOW_NORMAL); 	//Color with pretty drawings showing tracking results
+		cvNamedWindow( "Gibbon", CV_WINDOW_NORMAL); 	//Color with pretty drawings showing tracking results
 		//cvSetWindowProperty("Tracked", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN); //Set tracked window to fullscreen
 
 	}
@@ -98,8 +100,8 @@ int main(int argc, char* argv[]) {
 	start();
 
 	if(!setting->is_daemon) {
-		cvDestroyWindow( "Source" );
-		cvDestroyWindow( "Tracked" );
+		//cvDestroyWindow( "Source" );
+		cvDestroyWindow( "Gibbon" );
 
 		//cvDestroyWindow( "Processed" );
 		verbosePrint("Bye bye!");
@@ -236,6 +238,22 @@ void processKey(char key) {
 			pgrCamera.calibrateUndistortionROI();
 			printKeys();
 			break;
+		case 'j':
+			//simulate grab
+			handOne.at(index()).setGesture(GESTURE_GRAB);
+			handTwo.at(index()).setGesture(GESTURE_GRAB);
+			message.newHand(handOne.at(index()));
+			message.newHand(handTwo.at(index()));
+			verbosePrint("wizard says GRAB");
+			break;
+		case 'k':
+			//simulate release
+			handOne.at(index()).setGesture(GESTURE_RELEASE);
+			handTwo.at(index()).setGesture(GESTURE_RELEASE);
+			message.newHand(handOne.at(index()));
+			message.newHand(handTwo.at(index()));
+			verbosePrint("wizard says RELEASE");
+			break;
 		case 'h':
 			printKeys();
 			break;
@@ -321,7 +339,9 @@ void start(){
 	flowCount = vector<float>(maxCorners);
 	char key = 'a';
 	timeval first_time, second_time; //for fps calculation
+	time_t rawtime; //time to display
 	std::stringstream fps_str;
+	std::stringstream date_str;
 	gettimeofday(&first_time, 0);
 	int fps = 0;
 	while(key != 'q') {
@@ -355,7 +375,8 @@ void start(){
 		message.init();
 
 		if(!setting->is_daemon) {
-			imshow("Source", currentFrame);
+			time(&rawtime);
+			//imshow("Source", currentFrame);
 		}
 
 		//do all the pre-processing
@@ -379,22 +400,22 @@ void start(){
 		threshold(currentFrame, binaryImg, setting->lower_threshold, setting->upper_threshold, THRESH_BINARY);
 
 		if(setting->capture_snapshot) {
-			imwrite(setting->snapshot_path + "binary.png", binaryImg);
+			imwrite(setting->snapshot_path + ctime(&rawtime) + "_binary.png", binaryImg);
 		}
 
 		//clean up the current frame from noise using median blur filter
 		medianBlur(binaryImg, binaryImg, setting->median_blur_factor);
 		if(setting->capture_snapshot) {
-			imwrite(setting->snapshot_path + "median.png", binaryImg);
+			imwrite(setting->snapshot_path + ctime(&rawtime) + "_median.png", binaryImg);
 		}
 
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
 		touchImage = Mat(currentFrame.size(), CV_32FC1);
 		sharpnessImage(currentFrame, touchImage);
-		touchImage.convertTo(touchImage, CV_8UC1, 255, 0);
+		touchImage.convertTo(touchImage, CV_8UC1, 50, 0);
 
 		if(!setting->is_daemon) {
-			imshow("Binary", binaryImg);
+			//imshow("Binary", binaryImg);
 			//imshow("Touch", touchImage);
 		}
 
@@ -432,8 +453,12 @@ void start(){
 			featureDepthExtract(touchImage);
 			assignFeaturesToHands();
 			meanAndStdDevExtract();
-			GestureTracker::checkGestures(&handOne);
-			GestureTracker::checkGestures(&handTwo);
+			if(setting->wiz_of_oz) {
+				//No need for system gesture tracking
+			} else {
+				GestureTracker::checkGestures(&handOne);
+				GestureTracker::checkGestures(&handTwo);
+			}
 			if(!setting->is_daemon) {
 				//only draw things if there are going to be displayed
 				drawHandTrace(trackingResults);
@@ -445,23 +470,11 @@ void start(){
 		}
 		updateMessage();
 
-		if(setting->capture_snapshot) {
-			//TODO: check for existing files and increment accordingly - or use date
-			imwrite(setting->snapshot_path + "source.png", currentFrame);
-			//cvtColor(touchImage, touchImage, CV_GRAY2BGR, 1);
-			imwrite(setting->snapshot_path + "touch.png", touchImage);
-			imwrite(setting->snapshot_path + "result.png", trackingResults);
-			putText(trackingResults, "Snapshot OK!", Point(40,120), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
-			setting->capture_snapshot = false;
-		}
-
-
 		if(!setting->is_daemon) {
 			//Combine images to display
 			cvtColor(obs1Frame, obs1FrameBGR, CV_GRAY2BGR);
 			cvtColor(touchImage, tmpEigenBGR, CV_GRAY2BGR);
-			obs1Frame.setTo(Scalar(10,10,0));
-			displayResults = Mat(trackingResults.rows + tmpEigenBGR.rows, trackingResults.cols + obs1FrameBGR.cols, CV_8UC3);
+			displayResults = Mat(trackingResults.rows + tmpEigenBGR.rows, trackingResults.cols + obs1FrameBGR.cols, CV_8UC3, Scalar(30,10,10));
 			Mat roiImgResult_topLeft = displayResults(Rect(0, 0, trackingResults.cols, trackingResults.rows)); //Image will be on the top left part
 			Mat roiImgResult_topRight = displayResults(Rect(trackingResults.cols, 0, obs1FrameBGR.cols, obs1FrameBGR.rows));
 			Mat roiImgResult_lowerRight = displayResults(Rect(trackingResults.cols, trackingResults.rows, tmpEigenBGR.cols, tmpEigenBGR.rows));
@@ -470,7 +483,20 @@ void start(){
 			tmpEigenBGR.copyTo(roiImgResult_lowerRight);
 
 			//Decorate image with overlay and info
-			putText(displayResults, fps_str.str(), Point(20, trackingResults.rows + 20), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
+			putText(displayResults, fps_str.str(), Point(20, trackingResults.rows + 30), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
+			putText(displayResults, ctime(&rawtime), Point(20, trackingResults.rows + 60), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
+			putText(displayResults, setting->participant_number, Point(20, trackingResults.rows + 90), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
+
+
+			if(setting->capture_snapshot) {
+				//TODO: check for existing files and increment accordingly - or use date
+				imwrite(setting->snapshot_path + ctime(&rawtime) + "_source.png", currentFrame);
+				imwrite(setting->snapshot_path + ctime(&rawtime) + "_touch.png", touchImage);
+				imwrite(setting->snapshot_path + ctime(&rawtime) + "_tracking_result.png", trackingResults);
+				imwrite(setting->snapshot_path + ctime(&rawtime) + "_display_result.png", displayResults);
+				putText(displayResults, "Snapshot OK!", Point(400,420), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
+				setting->capture_snapshot = false;
+			}
 		}
 
 		//calculate and display FPS every 100 frames
@@ -487,7 +513,7 @@ void start(){
 			if(setting->save_output_video){
 				if (resultWriter.isOpened()) {
 					resultWriter << displayResults;
-					putText(displayResults, "Recording Results ... ", Point(20, trackingResults.rows + 40), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
+					putText(displayResults, "Recording Results ... ", Point(300, trackingResults.rows + 30), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
 				} else {
 					resultWriter = VideoWriter(setting->result_recording_path, CV_FOURCC('D', 'X', '5', '0'), fps,
 							Size(displayResults.cols, displayResults.rows));
@@ -501,7 +527,7 @@ void start(){
 
 
 			if(!setting->is_daemon) {
-				imshow("Tracked", displayResults);
+				imshow("Gibbon", displayResults);
 			}
 		}
 
@@ -780,29 +806,32 @@ void drawFeatures(Mat img) {
 	if(handTwo.at(index()).isPresent()) {
 		vector<Point2f> points = handTwo.at(index()).getFeatures();
 		vector<Point2f> vectors = handTwo.at(index()).getVectors();
+		vector<float> featureDepth = handTwo.at(index()).getFeaturesDepth();
+		vector<Point2f> orientation = handTwo.at(index()).getFeatureOrientation();
 		for (uint i = 0; i < points.size(); i++) {
+			//draw feature box
 			rectangle(img, Point(points[i].x - blockSize/2, points[i].y - blockSize/2), Point(points[i].x + blockSize/2, points[i].y + blockSize/2), BLUE);
+			//TODO: draw feature trace
+
+			//draw feature direction vector
 			line(img, points[i], (points[i] + vectors[i]), BLUE, 2, 8, 0);
+
+			//visualize feature depth and touch with a circle
+			int base_radius = 70;
+			int scaled_depth = 1 + base_radius * featureDepth[i] / 4.0;
+
+			if(scaled_depth > setting->touch_depth_threshold) {
+				//visualize touch with a filled red circle
+				circle(img, points[i], blockSize, RED, -1, CV_AA);
+			} else if(scaled_depth < base_radius) {
+				circle(img, points[i], base_radius - scaled_depth, RED, 1, CV_AA);
+			}
+
+			//visualize feature orientation with a line
+			line(img, points[i], points[i] + orientation[i], GREEN, 3, CV_AA);
 		}
 	}
-//	for(int i = 0; i < maxCorners; i++) {
-//		if(leftRightStatus[i] == 1) {
-//			// Left hand
-//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), ORANGE);
-//			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, ORANGE);
-//		} else if(leftRightStatus[i] == 2) {
-//			// Right hand
-//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), BLUE);
-//			//circle(img, Point(currentCorners[i].x, currentCorners[i].y), featureDepth[i] + 1, BLUE);
-//		} else {
-//			// None
-//			rectangle(img, Point(currentCorners[i].x - blockSize/2, currentCorners[i].y - blockSize/2), Point(currentCorners[i].x + blockSize/2, currentCorners[i].y + blockSize/2), PINK);
-//		}
-//
-//		if((uchar)flowStatus[i] == 1) {
-//			line(img, currentCorners[i], previousCorners[i], GREEN, 2, 8, 0);
-//		}
-//	}
+
 }
 
 /**
@@ -909,6 +938,8 @@ void printKeys() {
 		<< "'r' - toggle save output video" << endl
 		<< "'c' - capture snapshot" << endl
 		<< "'u' - enter undistortion/roi settings mode" << endl
+		<< "'j' - simulate grab (for user study)" << endl
+		<< "'k' - simulate release (for user study)" << endl
 		<< "'q' - quit application" << endl
 		<< "'h' - print this message" << endl << endl;
 }

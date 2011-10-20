@@ -97,6 +97,10 @@ public:
 	int undistortion_calibration_hCorners;
 	int undistortion_calibration_vCorners;
 
+	/*** user study data ***/
+	string participant_number;
+	bool wiz_of_oz;
+
 private:
 	Setting() {
 		/** Setting Default Values **/
@@ -104,7 +108,7 @@ private:
 		lower_threshold = 10;
 		upper_threshold = 200;
 		radius_threshold = 30;
-		touch_depth_threshold = 30;
+		touch_depth_threshold = 220;
 		median_blur_factor = 7;
 		save_input_video = false;
 		save_output_video = false;
@@ -134,6 +138,10 @@ private:
 		pgr_obs_cam1_index = 1; //index of first pgr user observer camera
 		pgr_cam_max_width = 752;
 		pgr_cam_max_height = 480;
+
+		/*** user study parameters ***/
+		participant_number = "000";
+		wiz_of_oz = 1;
 	};// Private constructor
 
 	//Setting(const Setting&);                 // Prevent copy-construction
