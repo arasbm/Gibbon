@@ -27,7 +27,7 @@
 using namespace FlyCapture2;
 
 static Setting* setting = Setting::Instance();
-Undistortion undistortion;
+Undistortion* undistortion;
 
 CameraPGR::~CameraPGR() {
 	pgrCam.StopCapture();
@@ -40,7 +40,7 @@ CameraPGR::~CameraPGR() {
 void CameraPGR::init(int cam_index){
 	//if undistortion on, initialize undistortion
 	if(setting->do_undistortion) {
-		undistortion = Undistortion();
+		undistortion = new Undistortion();
 	}
 	//Starts the camera.
 	busManager.GetNumOfCameras(&totalCameras);
@@ -127,15 +127,16 @@ cv::Mat CameraPGR::grabImage(){
 	//convert to opencv IplImage > undistort > convert to Mat
 	cv::Mat image(convertImageToOpenCV(&rawImage));
 	if(setting->do_undistortion) {
-		undistortion.undistortImage(&image);
+		undistortion->undistortImage(&image);
 	}
 	image = image(cv::Rect(setting->imageOffsetX, setting->imageOffsetY, setting->imageSizeX, setting->imageSizeY));
 	return image;
 }
 
 void CameraPGR::calibrateUndistortionROI() {
-	undistortion.settingsLoop(this);
-	undistortion = Undistortion();
+	undistortion->settingsLoop(this);
+	delete undistortion;
+	undistortion = new Undistortion();
 }
 
 /**
