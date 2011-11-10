@@ -32,6 +32,14 @@
 
 namespace po = boost::program_options;
 
+Setting* Setting::sInstance = NULL;
+Setting* Setting::Instance(){
+	if(sInstance == NULL){
+		sInstance = new Setting();
+	}
+	return sInstance;
+}
+
 /**
  * Loads the options appropriately giving preference to options provided by user.
  * If there is error or users asks it will print help(TODO) and usage of this application to the terminal
@@ -44,8 +52,9 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		   ("help", "Display this message")
 		   ("pgr-index", po::value<int>(&pgr_cam_index)->default_value(0), "index of pgr camera to use. Negative means do not use pgr camera")
 		   ("obs-cam-index", po::value<int>(&pgr_obs_cam1_index)->default_value(1), "index of observer camera")
+		   ("pgr-cam-max-width", po::value<int>(&pgr_cam_max_width)->default_value(752), "max width of camera")
+		   ("pgr-cam-max-height", po::value<int>(&pgr_cam_max_height)->default_value(480), "max height of camera")
 		   ("participant-number", po::value<std::string>(&participant_number), "user study participant number")
-		   ("wiz-of-oz", po::value<bool>(&wiz_of_oz), "when true, a human observer detects gestures")
 		   ("config-file", po::value<std::string>(&config_file_path),"Optionally provide a path to configuration file")
 		   ("verbose", po::value<bool>(&verbose), "If you want me to keep talking set verbose to true")
 		   ("is-daemon", po::value<bool>(&is_daemon), "In daemon mode there is no video or visualization")
@@ -60,8 +69,10 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		   ("lower-threshold", po::value<int>(&lower_threshold)->default_value(10), "Set the lower threshold")
 		   ("upper-threshold", po::value<int>(&upper_threshold)->default_value(255), "set the upper threshold")
 		   ("radius-threshold", po::value<int>(&radius_threshold)->default_value(20), "Set the lower threshold")
+		   ("touch-depth-threshold", po::value<int>(&touch_depth_threshold)->default_value(220), "Set depth threshold")
 		   ("median-blur-factor", po::value<int>(&median_blur_factor)->default_value(7), "set the median blur factor for contour detection")
 		   ("do-undistortion", po::value<bool>(&do_undistortion), "If true, camera image will be corrected for lens distortion")
+		   ("undistortion-factor", po::value<float>(&undistortion_factor)->default_value(0.35), "factor for correcting undistortion")
 		   ("imageOffsetX", po::value<float>(&imageOffsetX)->default_value(0), "x offset of image ROI")
 		   ("imageOffsetY", po::value<float>(&imageOffsetY)->default_value(0), "y offset of image ROI")
 		   ("imageSizeX", po::value<float>(&imageSizeX)->default_value(752), "width of image ROI")
@@ -69,7 +80,7 @@ bool Setting::loadOptions(int argc, char* argv[]) {
 		   ("undistortion-calibration-numChessboards", po::value<int>(&undistortion_calibration_numChessboards)->default_value(2), "number of chess boards to use for undistortion calibration")
 		   ("undistortion-calibration-hCorners", po::value<int>(&undistortion_calibration_hCorners)->default_value(6), "number of horizontal inside corners in chess board image used for undistortion calibration")
 		   ("undistortion-calibration-vCorners", po::value<int>(&undistortion_calibration_vCorners)->default_value(6), "number of vertical inside corners in chess board image used for undistortion calibration")
-		   //("", po::value<std::string>(&),"")
+		   ("wiz-of-oz", po::value<bool>(&wiz_of_oz), "when true, a human observer detects gestures")
 		   ;
 
 		po::variables_map vm;

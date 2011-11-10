@@ -78,6 +78,7 @@ public:
 	uchar isFeatureTracked(int i);
 	void calcMeanStdDev();
 	bool hasGesture();
+	Mat getFeatureMatrix();
 
 private:
 	handSide side;
@@ -100,6 +101,8 @@ private:
 	float gestureY; //Y position of the gesture in the range [0 1]
 	float angle; //the angle in the range [0 2PI]
 	//int numOfFeatures; //number of features detected that belong to this hand
+
+	Mat featureMatrix;
 
 };
 

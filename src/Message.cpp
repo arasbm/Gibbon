@@ -28,13 +28,14 @@
 #include "Log.h"
 
 using namespace TUIO;
-using namespace osc;
 
-static Setting* setting = Setting::Instance();
+#define setting Setting::Instance()
 
 Message::Message() {
 	if(setting->send_tuio) {
-		tuioServer = new TuioServer();
+		TuioTime::initSession();
+		//tuioServer = new TuioServer(setting->tuio_host.c_str(), setting->tuio_port);
+		tuioServer = new TuioServer("127.0.0.1", 3333);
 	}
 }
 
@@ -44,15 +45,15 @@ Message::Message() {
  */
 void Message::init() {
 	if(setting->send_tuio) {
-		TuioTime time = TuioTime::getSessionTime();
-		tuioServer->initFrame(time);
+		//TuioTime time = TuioTime::getSessionTime();
+		tuioServer->initFrame(TuioTime::getSessionTime());
 	}
 }
-
 /**
  * Every time (frame) a NEW hand is detected this method should be called to create a new message
  * for this hand and any gestures associated with it
  */
+
 void Message::newHand(Hand hand) {
 	if(setting->send_tuio) {
 		//tuioTime = TuioTime::getSessionTime();
@@ -96,4 +97,3 @@ Message::~Message() {
 		delete tuioServer;
 	}
 }
-

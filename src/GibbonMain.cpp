@@ -71,11 +71,11 @@ bool useHarrisDetector = false; //its either harris or cornerMinEigenVal
 CameraPGR pgrCamera;
 CameraPGR pgrObsCam1; //external camera for observing user
 
-Message message; //used by updateMessage() and inside the main loop
+Message* message; //used by updateMessage() and inside the main loop
 bool wiz_grab = false;
 bool wiz_release = false;
 int frameCount = 0;
-static Setting* setting = Setting::Instance();
+#define setting Setting::Instance()
 
 int main(int argc, char* argv[]) {
 	if(!setting->loadOptions(argc, argv)) {
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
  * Initialize global variables
  */
 void init() {
-	//Do nothing for now
+	message = new Message();
 }
 
 /**
@@ -127,21 +127,21 @@ void updateMessage() {
 		if(handOne.at(previousIndex()).hasGesture()) {
 			//go back 4 step to get closer to initial location gesture started at
 			handOne.at(previousIndex(stepsBack)).setGesture(handOne.at(previousIndex()).getGesture());
-			message.newHand(handOne.at(previousIndex(stepsBack)));
+			message->newHand(handOne.at(previousIndex(stepsBack)));
 		} else {
-			message.newHand(handOne.at(index()));
+			message->newHand(handOne.at(index()));
 		}
 	} else if(handOne.at(index()).isPresent()) {
 		//Update existing hand
 		if(handOne.at(index()).hasGesture()) {
-			message.removeHand(handOne.at(index()));
+			message->removeHand(handOne.at(index()));
 			handOne.at(index()).setPresent(false);
 		} else {
-			message.updateHand(handOne.at(index()));
+			message->updateHand(handOne.at(index()));
 		}
 	} else if((!handOne.at(index()).isPresent()) && handOne.at(previousIndex()).isPresent()) {
 		//ask for remove
-		message.removeHand(handOne.at(index()));
+		message->removeHand(handOne.at(index()));
 	} else {
 		//Peace and quiet here. Nothing to do.
 	}
@@ -151,21 +151,21 @@ void updateMessage() {
 		if(handTwo.at(previousIndex()).hasGesture()) {
 			//go back 4 step to get closer to initial location gesture started at
 			handTwo.at(previousIndex(stepsBack)).setGesture(handTwo.at(previousIndex()).getGesture());
-			message.newHand(handTwo.at(previousIndex(stepsBack)));
+			message->newHand(handTwo.at(previousIndex(stepsBack)));
 		} else {
-			message.newHand(handTwo.at(index()));
+			message->newHand(handTwo.at(index()));
 		}
 	} else if(handTwo.at(index()).isPresent()) {
 		//Update existing hand
 		if(handTwo.at(index()).hasGesture()) {
-			message.removeHand(handTwo.at(index()));
+			message->removeHand(handTwo.at(index()));
 			handTwo.at(index()).setPresent(false);
 		} else {
-			message.updateHand(handTwo.at(index()));
+			message->updateHand(handTwo.at(index()));
 		}
 	} else if((!handTwo.at(index()).isPresent()) && handTwo.at(previousIndex()).isPresent()){
 		//no hand, so ask for remove
-		message.removeHand(handTwo.at(index()));
+		message->removeHand(handTwo.at(index()));
 	} else {
 		//nothing to do.
 	}
@@ -242,16 +242,16 @@ void processKey(char key) {
 			//simulate grab
 			handOne.at(index()).setGesture(GESTURE_GRAB);
 			handTwo.at(index()).setGesture(GESTURE_GRAB);
-			message.newHand(handOne.at(index()));
-			message.newHand(handTwo.at(index()));
+			message->newHand(handOne.at(index()));
+			message->newHand(handTwo.at(index()));
 			verbosePrint("wizard says GRAB");
 			break;
 		case 'k':
 			//simulate release
 			handOne.at(index()).setGesture(GESTURE_RELEASE);
 			handTwo.at(index()).setGesture(GESTURE_RELEASE);
-			message.newHand(handOne.at(index()));
-			message.newHand(handTwo.at(index()));
+			message->newHand(handOne.at(index()));
+			message->newHand(handTwo.at(index()));
 			verbosePrint("wizard says RELEASE");
 			break;
 		case 'h':
@@ -372,7 +372,7 @@ void start(){
 			currentFrame = tmpColor;
 		}
 
-		message.init();
+		message->init();
 
 		if(!setting->is_daemon) {
 			time(&rawtime);
@@ -531,7 +531,7 @@ void start(){
 			}
 		}
 
-		message.commit();
+		message->commit();
 		previousFrame = currentFrame;
 		currentCorners = previousCorners;
 		previousTouchImage = touchImage;

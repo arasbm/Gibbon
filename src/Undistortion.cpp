@@ -33,7 +33,7 @@
 using namespace std;
 using namespace cv;
 
-static Setting* setting = Setting::Instance();
+Setting* setting = Setting::Instance();
 
 //used for calibration GUI interaction
 Point windowTopLeft = Point(-1,-1);

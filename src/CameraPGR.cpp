@@ -26,7 +26,7 @@
 
 using namespace FlyCapture2;
 
-static Setting* setting = Setting::Instance();
+#define setting Setting::Instance()
 Undistortion* undistortion;
 
 CameraPGR::~CameraPGR() {

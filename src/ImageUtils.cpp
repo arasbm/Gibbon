@@ -25,7 +25,7 @@
 
 using namespace cv;
 
-static Setting* setting = Setting::Instance();
+#define setting Setting::Instance()
 
 /**
  * This method calculated a measure of sharpness in the image by applying the

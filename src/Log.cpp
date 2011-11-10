@@ -30,7 +30,7 @@
 
 using namespace std;
 
-static Setting* setting = Setting::Instance();
+#define setting Setting::Instance()
 
 /**
  * This method prints the string if the program is running

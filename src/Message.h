@@ -28,7 +28,6 @@
 #include "Hand.h"
 
 using namespace TUIO;
-using namespace osc;
 
 class Message {
 public:

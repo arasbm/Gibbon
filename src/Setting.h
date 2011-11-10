@@ -46,10 +46,7 @@ const cv::Scalar RANDOM_COLOR = CV_RGB( rand()&255, rand()&255, rand()&255 ); //
 class Setting {
 
 public:
-	static Setting* Instance(){
-	    static Setting singleton;
-	    return &singleton;
-	}
+	static Setting* Instance();
 
     bool loadOptions(int argc, char* argv[]);
 
@@ -101,50 +98,13 @@ public:
 	string participant_number;
 	bool wiz_of_oz;
 
+protected:
+	Setting(){};//protected constructor
+
 private:
-	Setting() {
-		/** Setting Default Values **/
-		/*** Global settings ***/
-		lower_threshold = 10;
-		upper_threshold = 200;
-		radius_threshold = 30;
-		touch_depth_threshold = 220;
-		median_blur_factor = 7;
-		save_input_video = false;
-		save_output_video = false;
-		subtract_background = false;
-		send_tuio = true;
-		verbose = true; //when in verbose mode, process info is printed to terminal in various places
-		is_daemon = false; //when in daemon mode no video is displayed and no drawing happens
-		source_recording_path = "";
-		result_recording_path = "";
-		snapshot_path = "";
-		log_path = "/home/arasbm/Desktop/grab_and_release_data/log.txt";
-		input_video_path = "/mnt/arasbm_server/near_touch_data/test.avi";
-		config_file_path = "config.ini";
-		grab_std_dev_factor = 14; // the rate at which stdDev is expected to change during grab and release gesture
-		tuio_port = 3333;
-		tuio_host = "localhost";
-		do_undistortion = true;
-		undistortion_factor = 0.35;
+    static Setting* sInstance;
 
-
-		/*** modes ***/
-		left_grab_mode = false;
-		right_grab_mode = false;
-
-		/*** pgr camera serrings ***/
-		pgr_cam_index = 0;
-		pgr_obs_cam1_index = 1; //index of first pgr user observer camera
-		pgr_cam_max_width = 752;
-		pgr_cam_max_height = 480;
-
-		/*** user study parameters ***/
-		participant_number = "000";
-		wiz_of_oz = 1;
-	};// Private constructor
-
-	//Setting(const Setting&);                 // Prevent copy-construction
+    //Setting(const Setting&);                 // Prevent copy-construction
 	Setting& operator=(const Setting&);        // Prevent assignment
 
 };

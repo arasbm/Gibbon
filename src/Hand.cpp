@@ -26,7 +26,7 @@
 
 using namespace std;
 
-Setting* setting = Setting::Instance();
+#define setting Setting::Instance()
 
 Hand::Hand(handSide s) {
 	static int handCount;
@@ -330,4 +330,8 @@ void Hand::clear() {
 	featureOrientation.clear();
 	flowStatus.clear();
 	//TODO: Check for anything else I need to do here to prevent error or release memory
+}
+
+Mat Hand::getFeatureMatrix() {
+	return featureMatrix;
 }
