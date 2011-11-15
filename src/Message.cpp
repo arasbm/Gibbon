@@ -33,9 +33,7 @@ using namespace TUIO;
 
 Message::Message() {
 	if(setting->send_tuio) {
-		TuioTime::initSession();
-		//tuioServer = new TuioServer(setting->tuio_host.c_str(), setting->tuio_port);
-		tuioServer = new TuioServer("127.0.0.1", 3333);
+                tuioServer = new TuioServer(setting->tuio_host.c_str(), setting->tuio_port);
 	}
 }
 
@@ -45,8 +43,7 @@ Message::Message() {
  */
 void Message::init() {
 	if(setting->send_tuio) {
-		//TuioTime time = TuioTime::getSessionTime();
-		tuioServer->initFrame(TuioTime::getSessionTime());
+                tuioServer->initFrame(TuioTime::getSessionTime());
 	}
 }
 /**
@@ -56,7 +53,6 @@ void Message::init() {
 
 void Message::newHand(Hand hand) {
 	if(setting->send_tuio) {
-		//tuioTime = TuioTime::getSessionTime();
 		//handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
 		handList[hand.getHandSide()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
 	}

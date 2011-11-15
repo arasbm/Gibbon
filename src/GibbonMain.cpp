@@ -341,6 +341,7 @@ void start(){
 	timeval first_time, second_time; //for fps calculation
 	time_t rawtime; //time to display
 	std::stringstream fps_str;
+	std::stringstream tuio_str;
 	std::stringstream date_str;
 	gettimeofday(&first_time, 0);
 	int fps = 0;
@@ -522,9 +523,14 @@ void start(){
 
 			if(setting->save_input_video){
 				//actually saving is done before pre processing above
-				putText(trackingResults, "Recording Source ... ", Point(40,40), FONT_HERSHEY_COMPLEX, 1, YELLOW, 3, 8, false);
+				putText(displayResults, "Recording Source ... ", Point(40,40), FONT_HERSHEY_COMPLEX, 1, YELLOW, 3, 8, false);
 			}
 
+			if(setting->send_tuio) {
+				tuio_str.str("");
+				tuio_str << "TUIO -> " << setting->tuio_host << ":" << setting->tuio_port;
+				putText(displayResults, tuio_str.str(), Point(20, trackingResults.rows + 120), FONT_HERSHEY_COMPLEX_SMALL, 1, YELLOW, 1, 8, false);
+			}
 
 			if(!setting->is_daemon) {
 				imshow("Gibbon", displayResults);
