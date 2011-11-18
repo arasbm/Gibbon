@@ -32,6 +32,7 @@ using namespace TUIO;
 #define setting Setting::Instance()
 
 Message::Message() {
+
 	if(setting->send_tuio) {
                 tuioServer = new TuioServer(setting->tuio_host.c_str(), setting->tuio_port);
 	}
@@ -42,6 +43,7 @@ Message::Message() {
  * The new message will not be sent until it is committed
  */
 void Message::init() {
+        //TuioTime::initSession();
 	if(setting->send_tuio) {
                 tuioServer->initFrame(TuioTime::getSessionTime());
 	}
@@ -54,7 +56,7 @@ void Message::init() {
 void Message::newHand(Hand hand) {
 	if(setting->send_tuio) {
 		//handList[hand.getHandNumber()] = TuioObject(tuioTime, 0, hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
-		handList[hand.getHandSide()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
+                handList[hand.getHandSide()] = tuioServer->addTuioObject(hand.handMessageID(), hand.getX(), hand.getY(), hand.getAngle());
 	}
 }
 
@@ -64,7 +66,8 @@ void Message::newHand(Hand hand) {
  */
 void Message::updateHand(Hand hand) {
 	if(setting->send_tuio) {
-		tuioServer->updateTuioObject(handList[hand.getHandSide()], hand.getX(), hand.getY(), hand.getAngle());
+            tuioServer->updateTuioObject(handList[hand.getHandSide()], hand.getX(), hand.getY(), hand.getAngle());
+            //tuioServer->updateTuioObject(handList[hand.getHandSide()], .1f, .1f, .2f);
 	}
 }
 

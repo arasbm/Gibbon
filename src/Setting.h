@@ -99,7 +99,10 @@ public:
 	bool wiz_of_oz;
 
 protected:
-	Setting(){};//protected constructor
+        Setting(){
+            save_input_video = false;
+            save_output_video = false;
+        };//protected constructor
 
 private:
     static Setting* sInstance;
