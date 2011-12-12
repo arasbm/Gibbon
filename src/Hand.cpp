@@ -78,7 +78,7 @@ void Hand::setContour(vector<cv::Point> handContour) {
  * as calculated with cv::minAreaRect function
  */
 void Hand::setMinRect(RotatedRect rect) {
-	minRect = RotatedRect(rect.center, rect.size, rect.angle + 90);
+        minRect = RotatedRect(rect.center, rect.size, rect.angle);
 }
 
 RotatedRect Hand::getMinRect() {
@@ -332,6 +332,27 @@ void Hand::clear() {
 	//TODO: Check for anything else I need to do here to prevent error or release memory
 }
 
+/**
+ * return the matrix containing features of this hand and previous hands in the
+ * temporal window
+ */
 Mat Hand::getFeatureMatrix() {
 	return featureMatrix;
 }
+
+/**
+ * set the featureMatrix to features of this hand and all the previous hands in
+ * the temporal window
+ */
+void Hand::setFeatureMatrix(Mat featureMatrix) {
+    this->featureMatrix = featureMatrix;
+}
+
+/**
+ * return the moment object containing the 10 moment values for the contour of this hand
+ */
+Moments Hand::getMoments() {
+    return moments;
+}
+
+

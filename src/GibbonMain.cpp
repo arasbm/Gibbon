@@ -72,6 +72,8 @@ CameraPGR pgrCamera;
 CameraPGR pgrObsCam1; //external camera for observing user
 
 Message* message; //used by updateMessage() and inside the main loop
+FileStorage logFile("log.yml", FileStorage::WRITE);
+
 bool wiz_grab = false;
 bool wiz_release = false;
 int frameCount = 0;
@@ -131,6 +133,13 @@ void updateMessage() {
 		} else {
 			message->newHand(handOne.at(index()));
 		}
+
+                //TODO: move this code to a seperate function
+                logFile << "frame" << frameCount;
+                logFile << "time" << 12;
+                Mat testMatrix = (Mat_<double>(3,3) << 1000, 0, 320, 0, 1000, 240, 0, 0, 1);
+                logFile << "features" << testMatrix;
+
 	} else if(handOne.at(index()).isPresent()) {
 		//Update existing hand
 		if(handOne.at(index()).hasGesture()) {
@@ -549,6 +558,7 @@ void start(){
 	currentFrame.release();
 	trackingResults.release();
 	tmpColor.release();
+        logFile.release();
 	if(setting->pgr_cam_index >= 0){
 		pgrCamera.~CameraPGR();
 	}
@@ -720,6 +730,20 @@ void findHands(vector<vector<cv::Point> > contours) {
 		handTwo[index()].clear();
 		handOne[index()].clear();
 	}
+}
+/**
+ * calculate feature matrix for each hand in the temporal window that just passed and store it in each hand
+ * @precondition: this method should be called after findHands() has been called for current index()
+ */
+void setFeatureMat() {
+    if(handOne.at(index()).isPresent()) {
+        handOne.at(index()).setFeatureMatrix(
+
+        );
+    }
+    if(handTwo.at(index()).isPresent()) {
+
+    }
 }
 
 /**

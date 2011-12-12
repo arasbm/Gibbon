@@ -79,6 +79,8 @@ public:
 	void calcMeanStdDev();
 	bool hasGesture();
 	Mat getFeatureMatrix();
+        void setFeatureMatrix(Mat featureMatrix);
+        Moments getMoments();
 
 private:
 	handSide side;
@@ -102,8 +104,8 @@ private:
 	float angle; //the angle in the range [0 2PI]
 	//int numOfFeatures; //number of features detected that belong to this hand
 
-	Mat featureMatrix;
-
+        Moments moments; //object containing moments of the contour of this hand
+        Mat featureMatrix; //the matrix containing features of this hand and any other previous hand inside the temporal window
 };
 
 #endif /* HAND_H_ */

@@ -35,5 +35,6 @@ void updateMessage();
 int previousIndex();
 int previousIndex(int i);
 void printKeys();
+void setFeatureMat();
 
 #endif /* GIBBON_H_ */
