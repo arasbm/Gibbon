@@ -102,7 +102,9 @@ Undistortion::Undistortion() {
 	fsDistortion["Distortions"] >> distortion;
 	fsIntrinsic.release();
 	fsDistortion.release();
-	newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, Size(setting->pgr_cam_max_width,setting->pgr_cam_max_height), setting->undistortion_factor);
+    Rect validRect;
+    //newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, Size(setting->pgr_cam_max_width,setting->pgr_cam_max_height), setting->undistortion_factor);
+    newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), setting->undistortion_factor, Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), &validRect, true);
 	//newCameraMatrix = getDefaultNewCameraMatrix(intrinsic, Size(setting->pgr_cam_max_width,setting->pgr_cam_max_height), true);
 }
 
@@ -115,6 +117,7 @@ void Undistortion::undistortImage(Mat* image){
 	Mat distorted = image->clone();
 	//cvRemap(image, undistImage, mapx, mapy);
 	undistort(distorted, *image, intrinsic, distortion, newCameraMatrix);
+    distorted.release();
 	//cvUndistort2(image, undistImage, intrinsic, distortion, newCameraMatrix);
 }
 
@@ -218,8 +221,9 @@ void Undistortion::settingsLoop(CameraPGR* cam) {
 	float sizeX = original_imageSizeX;
 	float sizeY = original_imageSizeY;
 
-	newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion,
-			Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), setting->undistortion_factor);
+    Rect validRect;
+    //newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), setting->undistortion_factor);
+    newCameraMatrix = getOptimalNewCameraMatrix(intrinsic, distortion, Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), setting->undistortion_factor, Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), &validRect, true);
 
 	for(;;) {
 
@@ -341,7 +345,7 @@ void Undistortion::calibrateUndistortion(CameraPGR* cam) {
 
 	for(;;) {
 		int numBoards = 6;
-		int numCornersH = 8;
+        int numCornersH = 9;
 		int numCornersV = 6;
 
 		int numSquares = numCornersH*numCornersV;

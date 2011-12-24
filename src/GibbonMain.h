@@ -19,6 +19,7 @@ void processKey(char key);
 void findHands(std::vector< std::vector<cv::Point> > contours);
 void opencvConnectedComponent(cv::Mat* src, cv::Mat* dst);
 void init();
+void setLog2Headers();
 void start();
 void checkGrab();
 void checkRelease();
@@ -28,6 +29,7 @@ void findGoodFeatures(cv::Mat frame1, cv::Mat frame2);
 void assignFeaturesToHands();
 void drawFeatures(cv::Mat img);
 void drawMeanAndStdDev(cv::Mat img);
+void drawGrid(cv::Mat img);
 float getDistance(const cv::Point2f a, const cv::Point2f b);
 int numberOfHands();
 int index();
@@ -35,6 +37,7 @@ void updateMessage();
 int previousIndex();
 int previousIndex(int i);
 void printKeys();
-void setFeatureMat();
+void setFeatureMats();
+void saveRecord(std::string gst);
 
 #endif /* GIBBON_H_ */

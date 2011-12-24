@@ -53,6 +53,13 @@ bool Hand::isPresent() {
 }
 
 /**
+ * Get the mass center point of this hand
+ */
+Point2f Hand::getMassCenter() {
+    return massCenter;
+}
+
+/**
  * set whether this hand is being tracked or has gone out of view
  */
 void Hand::setPresent(bool p) {
@@ -68,9 +75,14 @@ vector<cv::Point> Hand::getContour() {
 
 /**
  * This function will receive a vector<cv::Point>  as input parameter
+ * it sets the contour of the hand as well as the moments of this contour
  */
 void Hand::setContour(vector<cv::Point> handContour) {
-	contour = handContour;
+    contour = handContour;
+    //now set the moment values
+    moments = cv::moments(contour, false);
+    //set the center of mass
+    massCenter = Point2f( moments.m10/moments.m00 , moments.m01/moments.m00 );
 }
 
 /**
@@ -78,7 +90,7 @@ void Hand::setContour(vector<cv::Point> handContour) {
  * as calculated with cv::minAreaRect function
  */
 void Hand::setMinRect(RotatedRect rect) {
-        minRect = RotatedRect(rect.center, rect.size, rect.angle);
+     minRect = rect; //RotatedRect(rect.center, rect.size, rect.angle);
 }
 
 RotatedRect Hand::getMinRect() {

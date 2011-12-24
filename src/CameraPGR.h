@@ -34,20 +34,32 @@ class CameraPGR : public ImageProvider {
 
 public:
 	cv::Mat grabImage();
-	void init(int cam_index);
+    void init(int cam_index, bool do_undistortion, bool is_color);
 	void calibrateUndistortionROI();
 	~CameraPGR();
 
 private:
-	IplImage* convertImageToOpenCV(Image* pImage);
-
+    void getOpenCVFromPGR();
+    void PrintCameraInfo( CameraInfo* pCamInfo );
+    //unsigned char pMemBuffers;
+    PixelFormat pixFormat;
+    IplImage* cvImage;
+    Error pgError;
+    Image pImage;
+    Image colorImage; //new image to be referenced by cvImage for converting to color
+    cv::Mat image;
+    cv::Mat flippedImage;
+    cv::Mat croppedImage;
 	Camera pgrCam;
 	PGRGuid guid;
     Format7ImageSettings fmt7ImageSettings;
     Format7PacketInfo fmt7PacketInfo;
 	BusManager busManager;
 	unsigned int totalCameras;
-
+    //do_undistortion: if undistortion should be applied to this particular camera.
+    //note that there is also a global setting->do_undistortion that applies to all cameras
+    bool do_undistortion;
+    bool is_color;
 };
 
 #endif /* CAMERAPGR_H_ */

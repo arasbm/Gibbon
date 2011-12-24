@@ -46,7 +46,7 @@ VideoWriter sourceWriter;
 VideoWriter resultWriter;
 
 /** Hand tracking structures [temporal tracking window] **/
-const uint hand_window_size = 5; //Number of frames to keep track of hand. Minimum of two is needed
+const uint hand_window_size = 20; //Number of frames to keep track of hand. Minimum of two is needed
 vector<Hand> handOne(hand_window_size, Hand(LEFT_HAND)); //circular: see index() function
 vector<Hand> handTwo(hand_window_size, Hand(RIGHT_HAND)); //circular: see index() function
 
@@ -72,11 +72,18 @@ CameraPGR pgrCamera;
 CameraPGR pgrObsCam1; //external camera for observing user
 
 Message* message; //used by updateMessage() and inside the main loop
-FileStorage logFile("log.yml", FileStorage::WRITE);
+FileStorage logFile;
+ofstream logFile2; //second log file is a CSV file with values from potential models
+Mat logMatrixOne; //matrix containing data to log at each frame for hand one. cols = 24 + 6 * maxCorners rows = hand_window_size
+Mat logMatrixTwo; //log matrix for hand two
 
 bool wiz_grab = false;
 bool wiz_release = false;
 int frameCount = 0;
+int fps = 0;
+int record_number = 0; //used for logging. Incremented after each record
+int log_num_cols = 24 + 6 * maxCorners; //number of columns in the log matrices
+bool show_grid = false; //grid is used to visually inspect calibration
 #define setting Setting::Instance()
 
 int main(int argc, char* argv[]) {
@@ -93,7 +100,6 @@ int main(int argc, char* argv[]) {
 		//cvSetWindowProperty("Tracked", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN); //Set tracked window to fullscreen
 
 	}
-	// Mat colorImg; //color image for connected component labelling
 
 	//print out key functions
 	printKeys();
@@ -115,7 +121,46 @@ int main(int argc, char* argv[]) {
  * Initialize global variables
  */
 void init() {
+    logFile = FileStorage( setting->participant_number + "_log.yml", FileStorage::WRITE );
+    string log2name = setting->participant_number + "_log.csv";
+    logFile2.open ( log2name.c_str(), ios_base::app );
+    logMatrixOne = ( Mat_<float>( hand_window_size, log_num_cols ));
+    logMatrixTwo = ( Mat_<float>( hand_window_size, log_num_cols ));
+    setLog2Headers();
 	message = new Message();
+}
+
+/**
+ * add headers to the second log file
+ * @precondition: logFile2 ofstream exist and is initialized
+ */
+void setLog2Headers() {
+    logFile2    << "record_number, "
+                << "frame_number, "
+                << "hand_number, "
+                << "action_type, "
+                << "time_stamp, "
+                << "fps, ";
+    for (int i = 0; i < hand_window_size; i++) {
+        logFile2 << i <<"_steps_back, "
+                << "min_rect.center.x, "
+                << "min_rect.center.y, "
+                << "min_rect.size.width, "
+                << "min_rect.size.height, "
+                << "min_rect.angle, "
+                << "min_circle.center.x, "
+                << "min_circle.center.y, "
+                << "min_circle.radius, "
+                << "mass.center.x, "
+                << "mass.center.y, "
+                << "feature_mean.x, "
+                << "feature_mean.y, "
+                << "feature_StdDev, "
+                << "num_of_features,";
+    }
+    logFile2 << endl;
+    logFile2.flush();
+    verbosePrint("LogFile2 Headers Written.");
 }
 
 /**
@@ -133,13 +178,6 @@ void updateMessage() {
 		} else {
 			message->newHand(handOne.at(index()));
 		}
-
-                //TODO: move this code to a seperate function
-                logFile << "frame" << frameCount;
-                logFile << "time" << 12;
-                Mat testMatrix = (Mat_<double>(3,3) << 1000, 0, 320, 0, 1000, 240, 0, 0, 1);
-                logFile << "features" << testMatrix;
-
 	} else if(handOne.at(index()).isPresent()) {
 		//Update existing hand
 		if(handOne.at(index()).hasGesture()) {
@@ -253,6 +291,7 @@ void processKey(char key) {
 			handTwo.at(index()).setGesture(GESTURE_GRAB);
 			message->newHand(handOne.at(index()));
 			message->newHand(handTwo.at(index()));
+            saveRecord("GRAB");
 			verbosePrint("wizard says GRAB");
 			break;
 		case 'k':
@@ -261,8 +300,12 @@ void processKey(char key) {
 			handTwo.at(index()).setGesture(GESTURE_RELEASE);
 			message->newHand(handOne.at(index()));
 			message->newHand(handTwo.at(index()));
+            saveRecord("RELEASE");
 			verbosePrint("wizard says RELEASE");
 			break;
+        case 'g':
+            show_grid = !show_grid;
+            break;
 		case 'h':
 			printKeys();
 			break;
@@ -294,7 +337,7 @@ void findGoodFeatures(Mat frame1, Mat frame2) {
 void start(){
 	//Contour detection structures
 	vector<vector<cv::Point> > contours;
-	vector<Vec4i> hiearchy;
+    //vector<Vec4i> hiearchy;
 
 	VideoCapture video(setting->input_video_path);
 
@@ -312,11 +355,11 @@ void start(){
 //	}
 
 	if(setting->pgr_obs_cam1_index >=0) {
-		pgrObsCam1.init(setting->pgr_obs_cam1_index);
+        pgrObsCam1.init(setting->pgr_obs_cam1_index, false, true); //color
 	}
 
 	if(setting->pgr_cam_index >= 0) {
-		pgrCamera.init(setting->pgr_cam_index);
+        pgrCamera.init(setting->pgr_cam_index, true, false); //monochrome
 	} else {
 		video.set(CV_CAP_PROP_FPS, 30);
 		if(!video.isOpened()) { // check if we succeeded
@@ -337,10 +380,13 @@ void start(){
 	Mat tmpColor;
 	Mat touchImage;
 	Mat previousTouchImage;
-	Mat obs1Frame;
-	Mat obs1FrameBGR; //color converted to display
+    Mat obs1Frame;
 	Mat tmpEigenBGR; //temporary color version of eigen value (touch) image to display
 	Mat displayResults;
+
+    Mat roiImgResult_topLeft;
+    Mat roiImgResult_topRight;
+    Mat roiImgResult_lowerRight;
 
 	//Mat watershed_markers = cvCreateImage( setting->imageSize, IPL_DEPTH_32S, 1 );
 	//Mat watershed_image;
@@ -350,20 +396,20 @@ void start(){
 	timeval first_time, second_time; //for fps calculation
 	time_t rawtime; //time to display
 	std::stringstream fps_str;
+    std::stringstream resolution_str;
 	std::stringstream tuio_str;
 	std::stringstream date_str;
 	gettimeofday(&first_time, 0);
-	int fps = 0;
+    fps = 0;
 	while(key != 'q') {
 		if(setting->pgr_obs_cam1_index >=0){
-			obs1Frame = pgrObsCam1.grabImage();
+            //obs1Frame.release();
+            obs1Frame = pgrObsCam1.grabImage();
 		}
 
 		if(setting->pgr_cam_index >= 0){
+            //currentFrame.release();
 			currentFrame = pgrCamera.grabImage();
-//			Mat rotatedFrame;
-//			rotateImage(&currentFrame, &rotatedFrame, 180);
-//			currentFrame = rotatedFrame;
 
 			if(setting->save_input_video) {
 				if (sourceWriter.isOpened()) {
@@ -371,8 +417,8 @@ void start(){
 					sourceWriter << tmpColor;
 				} else {
 					sourceWriter = VideoWriter(setting->source_recording_path, CV_FOURCC('D', 'I', 'V', '5'), fps,
-							Size(setting->imageSizeX,setting->imageSizeY));
-				}
+                            Size(setting->imageSizeX,setting->imageSizeY));
+                }
 			}
 		} else{
 			//This is a video file source, no need to save
@@ -405,7 +451,8 @@ void start(){
 
 		/**
 		 * Prepare the binary image for tracking hands as the two largest blobs in the scene
-		 * */
+         */
+        //binaryImg.release();
 		binaryImg = currentFrame.clone();
 		threshold(currentFrame, binaryImg, setting->lower_threshold, setting->upper_threshold, THRESH_BINARY);
 
@@ -420,6 +467,7 @@ void start(){
 		}
 
 		//adaptiveThreshold(binaryImg, binaryImg, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 10); //adaptive thresholding not works so well here
+        //touchImage.release();
 		touchImage = Mat(currentFrame.size(), CV_32FC1);
 		sharpnessImage(currentFrame, touchImage);
 		touchImage.convertTo(touchImage, CV_8UC1, 50, 0);
@@ -427,6 +475,7 @@ void start(){
 		if(!setting->is_daemon) {
 			//imshow("Binary", binaryImg);
 			//imshow("Touch", touchImage);
+            //imshow("test", currentFrame);
 		}
 
 		if(frameCount == 0) {
@@ -456,7 +505,7 @@ void start(){
 		//imshow("Watershed", touchImage);
 
 		findHands(contours);
-
+        setFeatureMats();
 		if(numberOfHands() > 0) {
 			//findGoodFeatures(previousFrame, currentFrame);
 			findGoodFeatures(previousTouchImage, touchImage);
@@ -480,16 +529,27 @@ void start(){
 		}
 		updateMessage();
 
+        //show the overlay grid if requested
+        if(show_grid && !setting->is_daemon) {
+            cvNamedWindow("Grid", CV_WINDOW_NORMAL);
+            //cvMoveWindow("Grid", 0, 0);
+            //cvSetWindowProperty("Grid", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+            drawGrid(trackingResults);
+            imshow("Grid", trackingResults);
+        } else {
+            cvDestroyWindow("Grid");
+        }
+
 		if(!setting->is_daemon) {
 			//Combine images to display
-			cvtColor(obs1Frame, obs1FrameBGR, CV_GRAY2BGR);
 			cvtColor(touchImage, tmpEigenBGR, CV_GRAY2BGR);
-			displayResults = Mat(trackingResults.rows + tmpEigenBGR.rows, trackingResults.cols + obs1FrameBGR.cols, CV_8UC3, Scalar(30,10,10));
-			Mat roiImgResult_topLeft = displayResults(Rect(0, 0, trackingResults.cols, trackingResults.rows)); //Image will be on the top left part
-			Mat roiImgResult_topRight = displayResults(Rect(trackingResults.cols, 0, obs1FrameBGR.cols, obs1FrameBGR.rows));
-			Mat roiImgResult_lowerRight = displayResults(Rect(trackingResults.cols, trackingResults.rows, tmpEigenBGR.cols, tmpEigenBGR.rows));
+            //displayResults.release();
+            displayResults = Mat(trackingResults.rows + tmpEigenBGR.rows, trackingResults.cols + trackingResults.cols, CV_8UC3, Scalar(30,10,10));
+            roiImgResult_topLeft = displayResults(Rect(0, 0, trackingResults.cols, trackingResults.rows)); //Image will be on the top left part
+            roiImgResult_topRight = displayResults(Rect(trackingResults.cols, 0, trackingResults.cols, trackingResults.rows));
+            roiImgResult_lowerRight = displayResults(Rect(trackingResults.cols, trackingResults.rows, tmpEigenBGR.cols, tmpEigenBGR.rows));
 			trackingResults.copyTo(roiImgResult_topLeft);
-			obs1FrameBGR.copyTo(roiImgResult_topRight);
+            obs1Frame.copyTo(roiImgResult_topRight);
 			tmpEigenBGR.copyTo(roiImgResult_lowerRight);
 
 			//Decorate image with overlay and info
@@ -520,6 +580,17 @@ void start(){
 		if(frameCount % 1000 == 0) verbosePrint(fps_str.str()); //report fps every 1000 frame on the terminal
 
 		if(!setting->is_daemon) {
+            //add tuio info
+            if(setting->send_tuio) {
+                tuio_str.str("");
+                tuio_str << "TUIO -> " << setting->tuio_host << ":" << setting->tuio_port;
+                putText(displayResults, tuio_str.str(), Point(20, trackingResults.rows + 120), FONT_HERSHEY_COMPLEX_SMALL, 1, YELLOW, 1, 8, false);
+            }
+            //add resolution info
+            resolution_str.str("");
+            resolution_str << "Resolution: ["  << trackingResults.cols << "X" << trackingResults.rows << "]";
+            putText(displayResults, resolution_str.str(), Point(20, trackingResults.rows + 150), FONT_HERSHEY_COMPLEX_SMALL, 1, YELLOW, 1, 8, false);
+
 			if(setting->save_output_video){
 				if (resultWriter.isOpened()) {
 					resultWriter << displayResults;
@@ -529,28 +600,35 @@ void start(){
 							Size(displayResults.cols, displayResults.rows));
 				}
 			}
-
 			if(setting->save_input_video){
 				//actually saving is done before pre processing above
 				putText(displayResults, "Recording Source ... ", Point(40,40), FONT_HERSHEY_COMPLEX, 1, YELLOW, 3, 8, false);
 			}
-
-			if(setting->send_tuio) {
-				tuio_str.str("");
-				tuio_str << "TUIO -> " << setting->tuio_host << ":" << setting->tuio_port;
-				putText(displayResults, tuio_str.str(), Point(20, trackingResults.rows + 120), FONT_HERSHEY_COMPLEX_SMALL, 1, YELLOW, 1, 8, false);
-			}
-
 			if(!setting->is_daemon) {
 				imshow("Gibbon", displayResults);
 			}
 		}
 
 		message->commit();
+        //previousFrame.release();
 		previousFrame = currentFrame;
+
 		currentCorners = previousCorners;
+
+        //previousTouchImage.release();
 		previousTouchImage = touchImage;
 		frameCount++;
+
+        /*//release some memory before going to next frame
+        trackingResults.release();
+        binaryImg.release(); //binary image for finding contours of the hand
+        tmpColor.release();
+        touchImage.release();
+        obs1Frame.release();
+        tmpEigenBGR.release(); //temporary color version of eigen value (touch) image to display
+        displayResults.release();
+        currentFrame.release();
+        */
 	}
 
 	//Clean up before leaving
@@ -558,10 +636,13 @@ void start(){
 	currentFrame.release();
 	trackingResults.release();
 	tmpColor.release();
-        logFile.release();
+    logFile.release();
 	if(setting->pgr_cam_index >= 0){
 		pgrCamera.~CameraPGR();
 	}
+    if(setting->pgr_obs_cam1_index >=0){
+        pgrObsCam1.~CameraPGR();
+    }
 }
 
 /**
@@ -688,7 +769,6 @@ void findHands(vector<vector<cv::Point> > contours) {
 			handOne[index()].setContour(contours[max1ContourIndex]);
 			handOne[index()].setMinRect(minAreaRect(Mat(contours[max1ContourIndex])));
 			handOne[index()].setPresent(true);
-
 		} else if(handOnePresent && !handTwoPresent) {
 			if(getDistance(handOneCenter, max1Center) < setting->radius_threshold*4) {
 				handOne[index()].setMinCircleCenter(max1Center);
@@ -732,18 +812,161 @@ void findHands(vector<vector<cv::Point> > contours) {
 	}
 }
 /**
- * calculate feature matrix for each hand in the temporal window that just passed and store it in each hand
+ * calculate feature matrix for each hand in the temporal window that just passed and store it in each hand matrix
  * @precondition: this method should be called after findHands() has been called for current index()
+ * this method runs for every frame
  */
-void setFeatureMat() {
+void setFeatureMats() {
     if(handOne.at(index()).isPresent()) {
-        handOne.at(index()).setFeatureMatrix(
-
-        );
+        Hand h = handOne.at(index());
+        Moments m = handOne.at(index()).getMoments();
+        logMatrixOne.pop_back(1);
+        Mat tmpMatrix = (Mat_<float>(1, log_num_cols) << record_number,
+                         m.m00, m.m01, m.m02, m.m03, m.m10, m.m11, m.m12, m.m20, m.m21, m.m30,
+                         h.getMinRect().center.x, h.getMinRect().center.y,
+                         h.getMinRect().size.width, h.getMinRect().size.height, h.getMinRect().angle,
+                         h.getFeatureMean().x, h.getFeatureMean().y, h.getFeatureStdDev(),
+                         h.getMinCircleCenter().x, h.getMinCircleCenter().y, h.getMinCircleRadius());
+        int offset = 22; //number of values added above
+        for(int i = 0, j = offset; i < maxCorners; i++, j+=5) {
+            if(h.getFeatures().size() > i) {
+                tmpMatrix.at<float>(0, j) = h.getFeatures()[i].x;
+                tmpMatrix.at<float>(0, j + 1) = h.getFeatures()[i].y;
+                tmpMatrix.at<float>(0, j + 2) = h.getFeaturesDepth()[i];
+                tmpMatrix.at<float>(0, j + 3) = h.getVectors()[i].x;
+                tmpMatrix.at<float>(0, j + 4) = h.getVectors()[i].y;
+            } else {
+                tmpMatrix.at<float>(0, j) = 0;
+                tmpMatrix.at<float>(0, j + 1) = 0;
+                tmpMatrix.at<float>(0, j + 2) = 0;
+                tmpMatrix.at<float>(0, j + 3) = 0;
+                tmpMatrix.at<float>(0, j + 4) = 0;
+            }
+        }
+        tmpMatrix.push_back(logMatrixOne);
+        logMatrixOne = tmpMatrix;
     }
     if(handTwo.at(index()).isPresent()) {
-
+        Hand h = handTwo.at(index());
+        Moments m = handTwo.at(index()).getMoments();
+        logMatrixTwo.pop_back(1);
+        Mat tmpMatrix = (Mat_<float>(1, log_num_cols) << record_number,
+                         m.m00, m.m01, m.m02, m.m03, m.m10, m.m11, m.m12, m.m20, m.m21, m.m30,
+                         h.getMinRect().center.x, h.getMinRect().center.y,
+                         h.getMinRect().size.width, h.getMinRect().size.height, h.getMinRect().angle,
+                         h.getFeatureMean().x, h.getFeatureMean().y, h.getFeatureStdDev(),
+                         h.getMinCircleCenter().x, h.getMinCircleCenter().y, h.getMinCircleRadius());
+        int offset = 22; //number of values added above
+        for(int i = 0, j = offset; i < maxCorners; i++, j+=5) {
+            if(h.getFeatures().size() > i) {
+                tmpMatrix.at<float>(j) = h.getFeatures()[i].x;
+                tmpMatrix.at<float>(j + 1) = h.getFeatures()[i].y;
+                tmpMatrix.at<float>(j + 2) = h.getFeaturesDepth()[i];
+                tmpMatrix.at<float>(j + 3) = h.getVectors()[i].x;
+                tmpMatrix.at<float>(j + 4) = h.getVectors()[i].y;
+            } else {
+                tmpMatrix.at<float>(0, j) = 0;
+                tmpMatrix.at<float>(0, j + 1) = 0;
+                tmpMatrix.at<float>(0, j + 2) = 0;
+                tmpMatrix.at<float>(0, j + 3) = 0;
+                tmpMatrix.at<float>(0, j + 4) = 0;
+            }
+        }
+        tmpMatrix.push_back(logMatrixTwo);
+        logMatrixTwo = tmpMatrix;
     }
+}
+
+/**
+ * saves up to two records in the log file depending on how many hands are present
+ * takes gst as an string argument (for gesture such as "grab" and "release")
+ */
+void saveRecord(string gst) {
+    time_t rawtime;
+    time(&rawtime);
+    string time_str = ctime(&rawtime);
+    time_str.erase(time_str.find_last_not_of(" \n\r\t")+1); //trim "mandatory" return off
+    if(handOne.at(index()).isPresent()) {
+        //save data to main log file (yml format)
+        logFile << "record" << record_number;
+        logFile << "frame" << frameCount;
+        logFile << "fps" << fps;
+        logFile << "gesture" << gst;
+        logFile << "time" << time_str;
+        logFile << "hand_side" << handOne.at(index()).getHandSide();
+        logFile << "features" << logMatrixOne;
+
+        //save data to second log file (csv format)
+        logFile2    <<  record_number << ','
+                    << frameCount << ','
+                    << handOne.at(index()).getHandSide() << ','
+                    << gst << ','
+                    << time_str << ','
+                    << fps << ',';
+        for (int i = 0; i < hand_window_size; i++) {
+            if(handOne.at(previousIndex(i)).isPresent()) {
+                logFile2 << i << ','
+                << handOne.at(previousIndex(i)).getMinRect().center.x << ','
+                << handOne.at(previousIndex(i)).getMinRect().center.y << ','
+                << handOne.at(previousIndex(i)).getMinRect().size.width << ','
+                << handOne.at(previousIndex(i)).getMinRect().size.height << ','
+                << handOne.at(previousIndex(i)).getMinRect().angle << ','
+                << handOne.at(previousIndex(i)).getMinCircleCenter().x << ','
+                << handOne.at(previousIndex(i)).getMinCircleCenter().y << ','
+                << handOne.at(previousIndex(i)).getMinCircleRadius() << ','
+                << handOne.at(previousIndex(i)).getMassCenter().x << ','
+                << handOne.at(previousIndex(i)).getMassCenter().y << ','
+                << handOne.at(previousIndex(i)).getFeatureMean().x << ','
+                << handOne.at(previousIndex(i)).getFeatureMean().y << ','
+                << handOne.at(previousIndex(i)).getFeatureStdDev() << ','
+                << handOne.at(previousIndex(i)).getNumOfFeatures() << ',';
+            } else {
+                logFile2 << "0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,"; //should match the number of fields added in the if segment above
+            }
+        }
+        logFile2 << endl;
+    }
+    if(handTwo.at(index()).isPresent()) {
+        logFile << "record" << record_number;
+        logFile << "frame" << frameCount;
+        logFile << "fps" << fps;
+        logFile << "gesture" << gst;
+        logFile << "time" << time_str;
+        logFile << "hand_side" << handTwo.at(index()).getHandSide();
+        logFile << "features" << logMatrixTwo;
+
+        //save data to second log file (csv format)
+        logFile2    <<  record_number << ','
+                    << frameCount << ','
+                    << handTwo.at(index()).getHandSide() << ','
+                    << gst << ','
+                    << time_str << ','
+                    << fps << ',';
+        for (int i = 0; i < hand_window_size; i++) {
+            if(handTwo.at(previousIndex(i)).isPresent()) {
+                logFile2 << i << ','
+                << handTwo.at(previousIndex(i)).getMinRect().center.x << ','
+                << handTwo.at(previousIndex(i)).getMinRect().center.y << ','
+                << handTwo.at(previousIndex(i)).getMinRect().size.width << ','
+                << handTwo.at(previousIndex(i)).getMinRect().size.height << ','
+                << handTwo.at(previousIndex(i)).getMinRect().angle << ','
+                << handTwo.at(previousIndex(i)).getMinCircleCenter().x << ','
+                << handTwo.at(previousIndex(i)).getMinCircleCenter().y << ','
+                << handTwo.at(previousIndex(i)).getMinCircleRadius() << ','
+                << handTwo.at(previousIndex(i)).getMassCenter().x << ','
+                << handTwo.at(previousIndex(i)).getMassCenter().y << ','
+                << handTwo.at(previousIndex(i)).getFeatureMean().x << ','
+                << handTwo.at(previousIndex(i)).getFeatureMean().y << ','
+                << handTwo.at(previousIndex(i)).getFeatureStdDev() << ','
+                << handTwo.at(previousIndex(i)).getNumOfFeatures() << ',';
+            } else {
+                logFile2 << '0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,'; //should match the number of fields added in the if segment above
+            }
+        }
+        logFile2 << endl;
+    }
+
+    record_number += 1;
 }
 
 /**
@@ -865,6 +1088,24 @@ void drawFeatures(Mat img) {
 }
 
 /**
+ * Draw a grid on the image to help inspect calibration
+ */
+void drawGrid(Mat img) {
+    int num_lines_x = 10; //vertical lines
+    int num_lines_y = 6; //horizontal lines
+    int x_offset = (int)img.cols / num_lines_x;
+    int y_offset = (int)img.rows / num_lines_y;
+    //draw the vertical lines
+    for(int i = 1; i < num_lines_x; i++) {
+        line(img, Point(i * x_offset, 0), Point(i*x_offset, img.rows), YELLOW, 1, 4, 0);
+    }
+    //draw the horizontal lines
+    for(int i = 1; i < num_lines_y; i++) {
+        line(img, Point(0, i * y_offset), Point(img.cols, i*y_offset), YELLOW, 1, 4, 0);
+    }
+}
+
+/**
  * Draw a circle for mean and stdDev of features and a trace of their changes over
  * the hand temporal window
  */
@@ -971,5 +1212,6 @@ void printKeys() {
 		<< "'j' - simulate grab (for user study)" << endl
 		<< "'k' - simulate release (for user study)" << endl
 		<< "'q' - quit application" << endl
+        << "'g' - toggle grid (for testing calibration)" << endl
 		<< "'h' - print this message" << endl << endl;
 }

@@ -6,30 +6,30 @@ upper-threshold = 200
 radius-threshold = 30
 touch-depth-threshold = 220
 #Median blur factor has to be odd: 7, 9, 11 ... 21 are some typical values. This defines how well the hands will be separated from noise, but if set too high the left and right hand merge quickly when come close to each other.
-median-blur-factor = 15
+median-blur-factor = 7
 
 #Undistortion
-do-undistortion = 0
-undistortion-factor = 0.35
+do-undistortion = 1
+undistortion-factor = 0.15 #0.35
 undistortion-calibration-numChessboards = 6
-undistortion-calibration-hCorners = 8
+undistortion-calibration-hCorners = 9
 undistortion-calibration-vCorners = 6
 
 #Define ROI
-imageOffsetX = 74
-imageOffsetY = 75
-imageSizeX = 613
-imageSizeY = 358
+imageOffsetX = 46
+imageOffsetY = 73
+imageSizeX = 665
+imageSizeY = 374
 
 source-recording-path = source.avi
 result-recording-path = result.avi
-snapshot-path = snapshots/
+snapshot-path = ./
 #input-video-path = /mnt/arasbm_server/near_touch_data/user04_Teri.avi
 #input-video-path = /home/arasbm/grab_release_06.avi
 input-video-path = /mnt/arasbm_server/near_touch_data/user06_Wendy.avi
 
 #user study settings
-participant-number = Participant_007
+participant-number = Pilot_002
 wiz-of-oz = 1 #human observer detects gestures
 
 log-path = log.txt
@@ -37,10 +37,10 @@ log-path = log.txt
 #TUIO Settings
 send-tuio = 1
 tuio-port = 3333
-tuio-host = localhost
+tuio-host = 0.0.0.0
 
 # pgr camera serrings
-pgr-index	= 1 #set to -1 if not using an infrared pgr cam, otherwise set to the index of camera you intend to use
-obs-cam-index 	= 0 #index of first pgr user observer camera
+pgr-index	= 0 #set to -1 if not using an infrared pgr cam, otherwise set to the index of camera you intend to use
+obs-cam-index 	= 1 #index of first pgr user observer camera
 pgr-cam-max-width = 752
 pgr-cam-max-height = 480

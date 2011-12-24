@@ -23,6 +23,7 @@
 #include "FlyCapture2.h"
 #include "Setting.h"
 #include "Undistortion.h"
+#include "highgui.h"
 
 using namespace FlyCapture2;
 
@@ -37,20 +38,34 @@ CameraPGR::~CameraPGR() {
 /**
  * Initialize a PGR camera with format 7 settings
  * */
-void CameraPGR::init(int cam_index){
+void CameraPGR::init(int cam_index, bool do_undistortion, bool is_color){
 	//if undistortion on, initialize undistortion
-	if(setting->do_undistortion) {
+    this->do_undistortion = do_undistortion;
+    this->is_color = is_color;
+    if(this->do_undistortion && setting->do_undistortion) {
 		undistortion = new Undistortion();
 	}
+
 	//Starts the camera.
 	busManager.GetNumOfCameras(&totalCameras);
 	printf("Found %d cameras on the bus.\n",totalCameras);
-	fmt7ImageSettings.mode = MODE_0;
-	fmt7ImageSettings.offsetX = 0;
-	fmt7ImageSettings.offsetY = 0;
-	fmt7ImageSettings.width = setting->pgr_cam_max_width;
-	fmt7ImageSettings.height = setting->pgr_cam_max_height;
-	fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_MONO8;
+
+    if(is_color) {
+        //terrible hack ... TODO: fix this!!
+        fmt7ImageSettings.mode = MODE_0;
+        fmt7ImageSettings.offsetX = 44;
+        fmt7ImageSettings.offsetY = 52;
+        fmt7ImageSettings.width = 668;
+        fmt7ImageSettings.height = 376;
+        fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_RAW8;
+    } else {
+        fmt7ImageSettings.mode = MODE_0;
+        fmt7ImageSettings.offsetX = 0;
+        fmt7ImageSettings.offsetY = 0;
+        fmt7ImageSettings.width = setting->pgr_cam_max_width;
+        fmt7ImageSettings.height = setting->pgr_cam_max_height;
+        fmt7ImageSettings.pixelFormat = PIXEL_FORMAT_MONO8;
+    }
     bool valid;
 
     busManager.GetCameraFromIndex(cam_index, &guid);
@@ -59,7 +74,19 @@ void CameraPGR::init(int cam_index){
 	if (pgError != PGRERROR_OK){
 		printf("Error in starting the camera.\n");
 		return;
-	}
+    }
+
+    // Get the camera information
+    CameraInfo camInfo;
+    pgError = pgrCam.GetCameraInfo( &camInfo );
+    if (pgError != PGRERROR_OK)
+    {
+        cout << "Errot getting camera info";
+    }
+    PrintCameraInfo(&camInfo);
+
+
+    //pgrCam.SetUserBuffers(&pMemBuffers, 10000, 10);
 
     //Validate format7 settings
     pgError = pgrCam.ValidateFormat7Settings(
@@ -70,17 +97,21 @@ void CameraPGR::init(int cam_index){
     {
         cout << "ERROR! in validating format7 settings" << endl;
     }
-
     if ( !valid )
     {
         // Settings are not valid
 		cout << "Format7 settings are not valid" << endl;
     }
-
     // Set the settings to the camera
-    pgError = pgrCam.SetFormat7Configuration(
-        &fmt7ImageSettings,
-        fmt7PacketInfo.recommendedBytesPerPacket );
+    if(is_color) {
+        unsigned int recommended_size = 996;
+        pgError = pgrCam.SetFormat7Configuration( &fmt7ImageSettings, recommended_size );
+    } else {
+        unsigned int recommended_size = 1880;
+        pgError = pgrCam.SetFormat7Configuration(&fmt7ImageSettings, recommended_size );
+            //fmt7PacketInfo.recommendedBytesPerPacket );
+    }
+
     if (pgError != PGRERROR_OK)
     {
         cout << "ERROR setting format7" << endl;
@@ -94,43 +125,79 @@ void CameraPGR::init(int cam_index){
 
     // set frame rate property
     Property prop;
-	prop.type = FRAME_RATE;
-	pgError = pgrCam.GetProperty( &prop );
-	if (pgError != PGRERROR_OK)
-	{
-		cout << "ERROR setting camera properties" << endl;
-	}
-	prop.autoManualMode = false;
-	prop.onOff = true;
-	prop.absValue = 24.0;
 
-	pgError = pgrCam.SetProperty( &prop );
-	if (pgError != PGRERROR_OK)
-	{
-		cout << "ERROR setting camera properties" << endl;
-	}
+    //set framerate
+    prop.type = FRAME_RATE;
+    prop.autoManualMode = false;
+    prop.onOff = true;
+    prop.absValue = 15.0;
+    pgError = pgrCam.SetProperty( &prop );
+    if (pgError != PGRERROR_OK)
+    {
+        cout << "ERROR setting camera FPS" << endl;
+    }
 
-	cout << "pgr camera successfully initialized." << endl;
+
+    if(is_color) {
+
+        cout << "Color pgr camera [" << cam_index << "] successfully initialized." << endl;
+    } else {
+        //Main camera settings ...
+        //set brightness
+//        prop.type = BRIGHTNESS;
+//        prop.autoManualMode = false;
+//        prop.onOff = true;
+//        prop.absValue = 80.0;
+//        pgError = pgrCam.SetProperty( &prop );
+//        if (pgError != PGRERROR_OK)
+//        {
+//            cout << "ERROR setting camera brightness" << endl;
+//        }
+
+//        //set shutter
+        prop.type = SHUTTER;
+        prop.autoManualMode = false;
+        prop.onOff = true;
+        prop.absValue = 68.280;
+        pgError = pgrCam.SetProperty( &prop );
+        if (pgError != PGRERROR_OK)
+        {
+            cout << "ERROR setting camera shutter" << endl;
+        }
+
+//        //set Gain
+//        prop.type = GAIN;
+//        pgError = pgrCam.GetProperty( &prop );
+//        prop.autoManualMode = false;
+//        prop.onOff = true;
+//        prop.absValue = 7.0;
+//        pgError = pgrCam.SetProperty( &prop );
+//        if (pgError != PGRERROR_OK)
+//        {
+//            cout << "ERROR setting camera gain" << endl;
+//        }
+
+        cout << "Monochrome pgr camera [" << cam_index << "] successfully initialized." << endl;
+    }
 }
 
 /**
  * Retrieve an image from the camera and return it
  * */
 cv::Mat CameraPGR::grabImage(){
-	Error pgError;
-	Image rawImage;
-	pgError = pgrCam.RetrieveBuffer(&rawImage);
-	if (pgError != PGRERROR_OK){
-		cout << "Error in grabbing frame." << endl;
-	}
-
-	//convert to opencv IplImage > undistort > convert to Mat
-	cv::Mat image(convertImageToOpenCV(&rawImage));
-	if(setting->do_undistortion) {
-		undistortion->undistortImage(&image);
-	}
-	image = image(cv::Rect(setting->imageOffsetX, setting->imageOffsetY, setting->imageSizeX, setting->imageSizeY));
-	return image;
+    getOpenCVFromPGR();
+    if(this->do_undistortion && setting->do_undistortion) {
+        undistortion->undistortImage(&image);
+    }
+    //TODO: fix this glocal crop. for now cropping all images to the ROI of source image
+    cv::flip(image, flippedImage, 1);
+    if(is_color) {
+        croppedImage = flippedImage(cv::Rect(0, 0, setting->imageSizeX, setting->imageSizeY));
+        return croppedImage;
+    } else {
+        croppedImage = flippedImage(cv::Rect(setting->imageOffsetX, setting->imageOffsetY, setting->imageSizeX, setting->imageSizeY));
+        return croppedImage;
+    }
 }
 
 void CameraPGR::calibrateUndistortionROI() {
@@ -142,124 +209,77 @@ void CameraPGR::calibrateUndistortionROI() {
 /**
  * Convert PGR image to appropriate OpenCV image format
  * */
-IplImage* CameraPGR::convertImageToOpenCV(Image* pImage){
-	IplImage* cvImage = NULL;
-	bool bColor = true;
-	CvSize mySize;
-	mySize.height = pImage->GetRows();
-	mySize.width = pImage->GetCols();
+void CameraPGR::getOpenCVFromPGR(){
+    pImage.ReleaseBuffer();
+    //image.release();
 
-	switch ( pImage->GetPixelFormat() )
+    pgError = pgrCam.RetrieveBuffer(&pImage);
+    if (pgError != PGRERROR_OK){
+        cout << "Error in grabbing frame." << endl;
+    }
+
+    unsigned int rows, cols, stride;
+    pImage.GetDimensions( &rows, &cols, &stride, &pixFormat );
+
+    switch ( pixFormat )
 	{
 		case PIXEL_FORMAT_MONO8:
-			cvImage = cvCreateImageHeader(mySize, 8, 1 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 1;
-			bColor = false;
+            //good old single chanel 8bit monochrome
+            image = cv::Mat(rows, cols, CV_8UC1 , pImage.GetData());
 			break;
 		case PIXEL_FORMAT_411YUV8:
-			cvImage = cvCreateImageHeader(mySize, 8, 3 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 3;
-			break;
 		case PIXEL_FORMAT_422YUV8:
-			cvImage = cvCreateImageHeader(mySize, 8, 3 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 3;
-			break;
 		case PIXEL_FORMAT_444YUV8:
-			cvImage = cvCreateImageHeader(mySize, 8, 3 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 3;
-			break;
 		case PIXEL_FORMAT_RGB8:
-			cvImage = cvCreateImageHeader(mySize, 8, 3 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 3;
+        case PIXEL_FORMAT_RAW8:
+        case PIXEL_FORMAT_BGR:
+            //8bit color image
+            pImage.Convert(PIXEL_FORMAT_BGR, &colorImage);
+            image = cv::Mat(rows, cols, CV_8UC3 , colorImage.GetData());
 			break;
 		case PIXEL_FORMAT_MONO16:
-			cvImage = cvCreateImageHeader(mySize, 16, 1 );
-			cvImage->depth = IPL_DEPTH_16U;
-			cvImage->nChannels = 1;
-			bColor = false;
+        case PIXEL_FORMAT_S_MONO16:
+            //16bit monochrome image single chanel
+            image = cv::Mat(rows, cols, CV_16UC1 , pImage.GetData());
 			break;
 		case PIXEL_FORMAT_RGB16:
-			cvImage = cvCreateImageHeader(mySize, 16, 3 );
-			cvImage->depth = IPL_DEPTH_16U;
-			cvImage->nChannels = 3;
-			break;
-		case PIXEL_FORMAT_S_MONO16:
-			cvImage = cvCreateImageHeader(mySize, 16, 1 );
-			cvImage->depth = IPL_DEPTH_16U;
-			cvImage->nChannels = 1;
-			bColor = false;
-			break;
+        case PIXEL_FORMAT_RAW16:
 		case PIXEL_FORMAT_S_RGB16:
-			cvImage = cvCreateImageHeader(mySize, 16, 3 );
-			cvImage->depth = IPL_DEPTH_16U;
-			cvImage->nChannels = 3;
-			break;
-		case PIXEL_FORMAT_RAW8:
-			cvImage = cvCreateImageHeader(mySize, 8, 3 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 3;
-			break;
-		case PIXEL_FORMAT_RAW16:
-			cvImage = cvCreateImageHeader(mySize, 8, 3 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 3;
+            //16bit color
+            pImage.Convert(PIXEL_FORMAT_BGR, &colorImage);
+            image = cv::Mat(rows, cols, CV_16UC3 , colorImage.GetData());
 			break;
 		case PIXEL_FORMAT_MONO12:
-			//"Image format is not supported by OpenCV"
-			bColor = false;
-			break;
-		case PIXEL_FORMAT_RAW12:
-			//"Image format is not supported by OpenCV
-			break;
-		case PIXEL_FORMAT_BGR:
-			cvImage = cvCreateImageHeader(mySize, 8, 3 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 3;
+        case PIXEL_FORMAT_RAW12:
+            cout << "Error: Image format is not supported by OpenCV";
 			break;
 		case PIXEL_FORMAT_BGRU:
-			cvImage = cvCreateImageHeader(mySize, 8, 4 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 4;
-			break;
 		case PIXEL_FORMAT_RGBU:
-			cvImage = cvCreateImageHeader(mySize, 8, 4 );
-			cvImage->depth = IPL_DEPTH_8U;
-			cvImage->nChannels = 4;
+            //8bit  four chanel color image
+            pImage.Convert(PIXEL_FORMAT_BGRU, &colorImage);
+            image = cv::Mat(rows, cols, CV_8UC4 , colorImage.GetData());
 			break;
 		default:
 			cout << "ERROR in detecting image format" << endl;
 			break;
 	}
+}
 
-	if(bColor)
-	{
-		Image colorImage; //new image to be referenced by cvImage
-		colorImage.SetData(new unsigned char[pImage->GetCols() * pImage->GetRows()*3], pImage->GetCols() * pImage->GetRows() * 3);
-		pImage->Convert(PIXEL_FORMAT_BGR, &colorImage); //needs to be as BGR to be saved
-		cvImage->width = colorImage.GetCols();
-		cvImage->height = colorImage.GetRows();
-		cvImage->widthStep = colorImage.GetStride();
-		cvImage->origin = 0; //interleaved color channels
-		cvImage->imageDataOrigin = (char*)colorImage.GetData(); //DataOrigin and Data same pointer, no ROI
-		cvImage->imageData         = (char*)(colorImage.GetData());
-		cvImage->widthStep              = colorImage.GetStride();
-		cvImage->nSize = sizeof (IplImage);
-		cvImage->imageSize = cvImage->height * cvImage->widthStep;
-	}
-	else
-	{
-		cvImage->imageDataOrigin = (char*)(pImage->GetData());
-		cvImage->imageData         = (char*)(pImage->GetData());
-		cvImage->widthStep         = pImage->GetStride();
-		cvImage->nSize             = sizeof (IplImage);
-		cvImage->imageSize         = cvImage->height * cvImage->widthStep;
-		//at this point cvImage contains a valid IplImage
-	}
-
-	return cvImage;
+void CameraPGR::PrintCameraInfo( CameraInfo* pCamInfo ) {
+    printf(
+        "\n*** CAMERA INFORMATION ***\n"
+        "Serial number - %u\n"
+        "Camera model - %s\n"
+        "Camera vendor - %s\n"
+        "Sensor - %s\n"
+        "Resolution - %s\n"
+        "Firmware version - %s\n"
+        "Firmware build time - %s\n",
+        pCamInfo->serialNumber,
+        pCamInfo->modelName,
+        pCamInfo->vendorName,
+        pCamInfo->sensorInfo,
+        pCamInfo->sensorResolution,
+        pCamInfo->firmwareVersion,
+        pCamInfo->firmwareBuildTime );
 }
