@@ -85,31 +85,37 @@ void CameraPGR::init(int cam_index, bool do_undistortion, bool is_color){
     }
     PrintCameraInfo(&camInfo);
 
-
-    //pgrCam.SetUserBuffers(&pMemBuffers, 10000, 10);
-
-    //Validate format7 settings
-    pgError = pgrCam.ValidateFormat7Settings(
-        &fmt7ImageSettings,
-        &valid,
-        &fmt7PacketInfo );
-    if (pgError != PGRERROR_OK)
-    {
-        cout << "ERROR! in validating format7 settings" << endl;
-    }
-    if ( !valid )
-    {
-        // Settings are not valid
-		cout << "Format7 settings are not valid" << endl;
-    }
     // Set the settings to the camera
     if(is_color) {
+
+        //Validate format7 settings
+        pgError = pgrCam.ValidateFormat7Settings(
+            &fmt7ImageSettings,
+            &valid,
+            &fmt7PacketInfo );
+        if (pgError != PGRERROR_OK)
+        {
+            cout << "ERROR! in validating format7 settings" << endl;
+        }
+        if ( !valid )
+        {
+            // Settings are not valid
+            cout << "Format7 settings are not valid" << endl;
+        }
+
         unsigned int recommended_size = 996;
         pgError = pgrCam.SetFormat7Configuration( &fmt7ImageSettings, recommended_size );
     } else {
-        unsigned int recommended_size = 1880;
-        pgError = pgrCam.SetFormat7Configuration(&fmt7ImageSettings, recommended_size );
+        //unsigned int recommended_size = 1880;
+        //pgError = pgrCam.SetFormat7Configuration(&fmt7ImageSettings, recommended_size );
             //fmt7PacketInfo.recommendedBytesPerPacket );
+        pgError = pgrCam.SetVideoModeAndFrameRate(
+                    VIDEOMODE_640x480Y8,
+                    FRAMERATE_15 );
+        if (pgError != PGRERROR_OK)
+        {
+            cout << "ERROR! not able to set camera framerate";
+        }
     }
 
     if (pgError != PGRERROR_OK)
@@ -126,20 +132,17 @@ void CameraPGR::init(int cam_index, bool do_undistortion, bool is_color){
     // set frame rate property
     Property prop;
 
-    //set framerate
-    prop.type = FRAME_RATE;
-    prop.autoManualMode = false;
-    prop.onOff = true;
-    prop.absValue = 15.0;
-    pgError = pgrCam.SetProperty( &prop );
-    if (pgError != PGRERROR_OK)
-    {
-        cout << "ERROR setting camera FPS" << endl;
-    }
-
-
     if(is_color) {
-
+        //set framerate
+        prop.type = FRAME_RATE;
+        prop.autoManualMode = false;
+        prop.onOff = true;
+        prop.absValue = 15.0;
+        pgError = pgrCam.SetProperty( &prop );
+        if (pgError != PGRERROR_OK)
+        {
+            cout << "ERROR setting camera FPS" << endl;
+        }
         cout << "Color pgr camera [" << cam_index << "] successfully initialized." << endl;
     } else {
         //Main camera settings ...
@@ -155,15 +158,15 @@ void CameraPGR::init(int cam_index, bool do_undistortion, bool is_color){
 //        }
 
 //        //set shutter
-        prop.type = SHUTTER;
-        prop.autoManualMode = false;
-        prop.onOff = true;
-        prop.absValue = 68.280;
-        pgError = pgrCam.SetProperty( &prop );
-        if (pgError != PGRERROR_OK)
-        {
-            cout << "ERROR setting camera shutter" << endl;
-        }
+//        prop.type = SHUTTER;
+//        prop.autoManualMode = false;
+//        prop.onOff = true;
+//        prop.absValue = 68.280;
+//        pgError = pgrCam.SetProperty( &prop );
+//        if (pgError != PGRERROR_OK)
+//        {
+//            cout << "ERROR setting camera shutter" << endl;
+//        }
 
 //        //set Gain
 //        prop.type = GAIN;
@@ -186,15 +189,20 @@ void CameraPGR::init(int cam_index, bool do_undistortion, bool is_color){
  * */
 cv::Mat CameraPGR::grabImage(){
     getOpenCVFromPGR();
+    big_image = cv::Mat(cv::Size(setting->pgr_cam_max_width, setting->pgr_cam_max_height), CV_8UC1);
+    roi_center = big_image(cv::Rect(56, 0, 640, 480));
+    image.copyTo(roi_center);
     if(this->do_undistortion && setting->do_undistortion) {
-        undistortion->undistortImage(&image);
+        undistortion->undistortImage(&big_image);
     }
     //TODO: fix this glocal crop. for now cropping all images to the ROI of source image
-    cv::flip(image, flippedImage, 1);
+
     if(is_color) {
+        cv::flip(image, flippedImage, 1);
         croppedImage = flippedImage(cv::Rect(0, 0, setting->imageSizeX, setting->imageSizeY));
         return croppedImage;
     } else {
+        cv::flip(big_image, flippedImage, 1);
         croppedImage = flippedImage(cv::Rect(setting->imageOffsetX, setting->imageOffsetY, setting->imageSizeX, setting->imageSizeY));
         return croppedImage;
     }

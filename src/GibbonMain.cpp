@@ -21,8 +21,7 @@
 #include <set>
 #include <sstream>
 #include <exception>
-
-//Standard includes
+#include <math.h>
 #include <cmath>
 #include <ctime>
 #include <unistd.h>
@@ -46,7 +45,7 @@ VideoWriter sourceWriter;
 VideoWriter resultWriter;
 
 /** Hand tracking structures [temporal tracking window] **/
-const uint hand_window_size = 20; //Number of frames to keep track of hand. Minimum of two is needed
+const uint hand_window_size = 12; //Number of frames to keep track of hand. Minimum of two is needed
 vector<Hand> handOne(hand_window_size, Hand(LEFT_HAND)); //circular: see index() function
 vector<Hand> handTwo(hand_window_size, Hand(RIGHT_HAND)); //circular: see index() function
 
@@ -235,7 +234,9 @@ void drawHandTrace(Mat img) {
 				} else {
 					line(img, handOne.at(previous).getMinRectCenter(), handOne.at(current).getMinRectCenter(), ORANGE, 2, 4, 0);
 				}
-			}
+            } else {
+                break;
+            }
 		}
 	}
 
@@ -252,8 +253,10 @@ void drawHandTrace(Mat img) {
 				} else {
 					line(img, handTwo.at(previous).getMinRectCenter(), handTwo.at(current).getMinRectCenter(), BLUE, 2, 4, 0);
 				}
-			}
-		}
+            } else {
+                break;
+            }
+        }
 	}
 }
 
@@ -1040,15 +1043,18 @@ void drawFeatures(Mat img) {
 			line(img, points[i], (points[i] + vectors[i]), ORANGE, 2, 8, 0);
 
 			//visualize feature depth and touch with a circle
-			int base_radius = 70;
-			int scaled_depth = 1 + base_radius * featureDepth[i] / 4.0;
-
-			if(scaled_depth > setting->touch_depth_threshold) {
-				//visualize touch with a filled red circle
-				circle(img, points[i], blockSize, RED, -1, CV_AA);
-			} else if(scaled_depth < base_radius) {
+            int base_radius = 100;
+            int scaled_depth = sqrt( 1 + base_radius * featureDepth[i] / 2);
+            if (scaled_depth < 0) {
+                //integer overflow
+                scaled_depth = base_radius;
+            }
+            if(scaled_depth < base_radius - blockSize) {
 				circle(img, points[i], base_radius - scaled_depth, RED, 1, CV_AA);
-			}
+            } else {
+                //visualize touch with a bold red circle
+                circle(img, points[i], blockSize, RED, 6, CV_AA);
+            }
 
 			//visualize feature orientation with a line
 			line(img, points[i], points[i] + orientation[i], GREEN, 3, CV_AA);
@@ -1070,18 +1076,21 @@ void drawFeatures(Mat img) {
 			line(img, points[i], (points[i] + vectors[i]), BLUE, 2, 8, 0);
 
 			//visualize feature depth and touch with a circle
-			int base_radius = 70;
-			int scaled_depth = 1 + base_radius * featureDepth[i] / 4.0;
-
-			if(scaled_depth > setting->touch_depth_threshold) {
-				//visualize touch with a filled red circle
-				circle(img, points[i], blockSize, RED, -1, CV_AA);
-			} else if(scaled_depth < base_radius) {
+            int base_radius = 100;
+            int scaled_depth = sqrt( 1 + base_radius * featureDepth[i] / 2);
+            if (scaled_depth < 0) {
+                //integer overflow
+                scaled_depth = base_radius;
+            }
+            if(scaled_depth < base_radius - blockSize) {
 				circle(img, points[i], base_radius - scaled_depth, RED, 1, CV_AA);
-			}
+            } else {
+                //visualize touch with a bold red circle
+                circle(img, points[i], blockSize, RED, 6, CV_AA);
+            }
 
 			//visualize feature orientation with a line
-			line(img, points[i], points[i] + orientation[i], GREEN, 3, CV_AA);
+            line(img, points[i], points[i] + orientation[i], GREEN, 2, CV_AA);
 		}
 	}
 
@@ -1139,7 +1148,7 @@ void assignFeaturesToHands() {
 					handOne.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i], orientation, flowStatus[i]);
 				} else if(handTwo.at(index()).isPresent() && handTwo.at(index()).hasPointInside(currentCorners[i])) {
 					Point2f vector = currentCorners[i] - previousCorners[i];
-					Point2f orientation = currentCorners[i] - handOne.at(index()).getMinRectCenter();
+                    Point2f orientation = currentCorners[i] - handTwo.at(index()).getMinRectCenter();
 					handTwo.at(index()).addFeatureAndVector(currentCorners[i], vector, featureDepth[i], orientation, flowStatus[i]);
 				} else {
 					//this is noise or some other object

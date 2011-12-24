@@ -48,6 +48,8 @@ private:
     Image pImage;
     Image colorImage; //new image to be referenced by cvImage for converting to color
     cv::Mat image;
+    cv::Mat big_image; //bigger (752x480) container for image for undistortion
+    cv::Mat roi_center;
     cv::Mat flippedImage;
     cv::Mat croppedImage;
 	Camera pgrCam;

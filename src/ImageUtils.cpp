@@ -35,7 +35,7 @@ using namespace cv;
  */
 void sharpnessImage(Mat sourceImg, Mat touchImg) {
 	// blockSize define the window to consider around each pixel, so higher number produces larger blocks in the image
-	cv::cornerMinEigenVal(sourceImg, touchImg, 10, 9);
+    cv::cornerMinEigenVal(sourceImg, touchImg, 16, 9);
 }
 
 /**
