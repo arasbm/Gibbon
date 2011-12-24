@@ -924,7 +924,7 @@ void saveRecord(string gst) {
                 << handOne.at(previousIndex(i)).getFeatureStdDev() << ','
                 << handOne.at(previousIndex(i)).getNumOfFeatures() << ',';
             } else {
-                logFile2 << "0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,"; //should match the number of fields added in the if segment above
+                logFile2 << i << ",0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,"; //should match the number of fields added in the if segment above
             }
         }
         logFile2 << endl;
