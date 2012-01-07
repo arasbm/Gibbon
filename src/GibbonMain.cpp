@@ -138,6 +138,7 @@ void setLog2Headers() {
                 << "frame_number, "
                 << "hand_number, "
                 << "action_type, "
+                << "raw_time, "
                 << "time_stamp, "
                 << "fps, ";
     for (int i = 0; i < hand_window_size; i++) {
@@ -158,7 +159,7 @@ void setLog2Headers() {
                 << "num_of_features,";
     }
     logFile2 << endl;
-    logFile2.flush();
+    //logFile2.flush();
     verbosePrint("LogFile2 Headers Written.");
 }
 
@@ -290,20 +291,30 @@ void processKey(char key) {
 			break;
 		case 'j':
 			//simulate grab
-			handOne.at(index()).setGesture(GESTURE_GRAB);
-			handTwo.at(index()).setGesture(GESTURE_GRAB);
-			message->newHand(handOne.at(index()));
-			message->newHand(handTwo.at(index()));
-            saveRecord("GRAB");
-			verbosePrint("wizard says GRAB");
+            if(handOne.at(index()).isPresent()) {
+                handOne.at(index()).setGesture(GESTURE_GRAB);
+                message->newHand(handOne.at(index()));
+                saveRecord("GRAB", 1);
+            }
+            if(handTwo.at(index()).isPresent()) {
+                handTwo.at(index()).setGesture(GESTURE_GRAB);
+                message->newHand(handTwo.at(index()));
+                saveRecord("GRAB", 2);
+            }
+            verbosePrint("wizard says GRAB");
 			break;
 		case 'k':
 			//simulate release
-			handOne.at(index()).setGesture(GESTURE_RELEASE);
-			handTwo.at(index()).setGesture(GESTURE_RELEASE);
-			message->newHand(handOne.at(index()));
-			message->newHand(handTwo.at(index()));
-            saveRecord("RELEASE");
+            if(handOne.at(index()).isPresent()) {
+                handOne.at(index()).setGesture(GESTURE_RELEASE);
+                message->newHand(handOne.at(index()));
+                saveRecord("RELEASE", 1);
+            }
+            if(handTwo.at(index()).isPresent()) {
+                handTwo.at(index()).setGesture(GESTURE_RELEASE);
+                message->newHand(handTwo.at(index()));
+                saveRecord("RELEASE", 2);
+            }
 			verbosePrint("wizard says RELEASE");
 			break;
         case 'g':
@@ -400,8 +411,9 @@ void start(){
 	time_t rawtime; //time to display
 	std::stringstream fps_str;
     std::stringstream resolution_str;
+    std::stringstream record_str;
 	std::stringstream tuio_str;
-	std::stringstream date_str;
+    string time_str;
 	gettimeofday(&first_time, 0);
     fps = 0;
 	while(key != 'q') {
@@ -555,9 +567,13 @@ void start(){
             obs1Frame.copyTo(roiImgResult_topRight);
 			tmpEigenBGR.copyTo(roiImgResult_lowerRight);
 
-			//Decorate image with overlay and info
+            //add fps info
 			putText(displayResults, fps_str.str(), Point(20, trackingResults.rows + 30), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
-			putText(displayResults, ctime(&rawtime), Point(20, trackingResults.rows + 60), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
+
+            //add timestamp to the image
+            //time_str = ctime(&rawtime);
+            //time_str.erase(time_str.find_last_not_of(" \n")+1); //trim "mandatory" return off
+            putText(displayResults, ctime(&rawtime), Point(20, trackingResults.rows + 60), FONT_HERSHEY_COMPLEX_SMALL, 1, YELLOW, 1, 8, false);
 			putText(displayResults, setting->participant_number, Point(20, trackingResults.rows + 90), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
 
 
@@ -592,14 +608,19 @@ void start(){
             //add resolution info
             resolution_str.str("");
             resolution_str << "Resolution: ["  << trackingResults.cols << "X" << trackingResults.rows << "]";
-            putText(displayResults, resolution_str.str(), Point(20, trackingResults.rows + 150), FONT_HERSHEY_COMPLEX_SMALL, 1, YELLOW, 1, 8, false);
+            putText(displayResults, resolution_str.str(), Point(20, trackingResults.rows + 150), FONT_HERSHEY_COMPLEX_SMALL, 1, GREEN, 1, 8, false);
+
+            //add record number
+            record_str.str("");
+            record_str << "Record: #" << record_number;
+            putText(displayResults, record_str.str(), Point(20, trackingResults.rows + 180), FONT_HERSHEY_COMPLEX_SMALL, 1, YELLOW, 1, 8, false);
 
 			if(setting->save_output_video){
 				if (resultWriter.isOpened()) {
 					resultWriter << displayResults;
 					putText(displayResults, "Recording Results ... ", Point(300, trackingResults.rows + 30), FONT_HERSHEY_COMPLEX, 1, RED, 3, 8, false);
 				} else {
-					resultWriter = VideoWriter(setting->result_recording_path, CV_FOURCC('D', 'X', '5', '0'), fps,
+                    resultWriter = VideoWriter(setting->result_recording_path + setting->participant_number + "_" + ctime(&rawtime) + ".avi", CV_FOURCC('D', 'X', '5', '0'), fps,
 							Size(displayResults.cols, displayResults.rows));
 				}
 			}
@@ -884,17 +905,18 @@ void setFeatureMats() {
  * saves up to two records in the log file depending on how many hands are present
  * takes gst as an string argument (for gesture such as "grab" and "release")
  */
-void saveRecord(string gst) {
+void saveRecord(string gst, int hand_number) {
     time_t rawtime;
     time(&rawtime);
     string time_str = ctime(&rawtime);
     time_str.erase(time_str.find_last_not_of(" \n\r\t")+1); //trim "mandatory" return off
-    if(handOne.at(index()).isPresent()) {
+    if(hand_number == 1) {
         //save data to main log file (yml format)
         logFile << "record" << record_number;
         logFile << "frame" << frameCount;
         logFile << "fps" << fps;
         logFile << "gesture" << gst;
+        logFile << "raw_time" << (float)rawtime;
         logFile << "time" << time_str;
         logFile << "hand_side" << handOne.at(index()).getHandSide();
         logFile << "features" << logMatrixOne;
@@ -904,6 +926,7 @@ void saveRecord(string gst) {
                     << frameCount << ','
                     << handOne.at(index()).getHandSide() << ','
                     << gst << ','
+                    << rawtime << ','
                     << time_str << ','
                     << fps << ',';
         for (int i = 0; i < hand_window_size; i++) {
@@ -926,14 +949,15 @@ void saveRecord(string gst) {
             } else {
                 logFile2 << i << ",0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,"; //should match the number of fields added in the if segment above
             }
+            logFile2.flush();
         }
         logFile2 << endl;
-    }
-    if(handTwo.at(index()).isPresent()) {
+    }else if(hand_number == 2) {
         logFile << "record" << record_number;
         logFile << "frame" << frameCount;
         logFile << "fps" << fps;
         logFile << "gesture" << gst;
+        logFile << "raw_time" << (float)rawtime;
         logFile << "time" << time_str;
         logFile << "hand_side" << handTwo.at(index()).getHandSide();
         logFile << "features" << logMatrixTwo;
@@ -943,6 +967,7 @@ void saveRecord(string gst) {
                     << frameCount << ','
                     << handTwo.at(index()).getHandSide() << ','
                     << gst << ','
+                    << rawtime << ','
                     << time_str << ','
                     << fps << ',';
         for (int i = 0; i < hand_window_size; i++) {
@@ -963,12 +988,13 @@ void saveRecord(string gst) {
                 << handTwo.at(previousIndex(i)).getFeatureStdDev() << ','
                 << handTwo.at(previousIndex(i)).getNumOfFeatures() << ',';
             } else {
-                logFile2 << '0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,'; //should match the number of fields added in the if segment above
+                logFile2 << i << ",0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,"; //should match the number of fields added in the if segment above
             }
+            logFile2.flush();
         }
         logFile2 << endl;
     }
-
+    logFile2.flush();
     record_number += 1;
 }
 

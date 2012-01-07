@@ -38,6 +38,6 @@ int previousIndex();
 int previousIndex(int i);
 void printKeys();
 void setFeatureMats();
-void saveRecord(std::string gst);
+void saveRecord(std::string gst, int hand_number);
 
 #endif /* GIBBON_H_ */
